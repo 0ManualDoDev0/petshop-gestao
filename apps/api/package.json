@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
-    "start": "node dist/main.js",
+    "start": "node dist/src/main.js",
     "build:prod": "npm run build && npx prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
