@@ -24,4 +24,8 @@ export class ClientsService {
   update(id: string, data: any) {
     return this.prisma.client.update({ where: { id }, data });
   }
+
+  remove(id: string) {
+    return this.prisma.client.delete({ where: { id } });
+  }
 }

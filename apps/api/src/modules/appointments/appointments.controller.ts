@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Request, UseGuards, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AppointmentsService } from './appointments.service';
@@ -15,4 +15,5 @@ export class AppointmentsController {
   @Patch(':id/start') start(@Param('id') id: string) { return this.service.start(id); }
   @Patch(':id/complete') complete(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.complete(id, { ...body, registeredById: req.user?.id }); }
   @Patch(':id/cancel') cancel(@Param('id') id: string, @Body() body: { reason: string }) { return this.service.cancel(id, body.reason); }
+  @Delete(':id') @HttpCode(204) remove(@Param('id') id: string) { return this.service.remove(id); }
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -78,5 +78,12 @@ export class AppointmentsService {
 
   cancel(id: string, reason: string) {
     return this.prisma.appointment.update({ where: { id }, data: { status: 'cancelled', cancelledReason: reason } });
+  }
+
+  async remove(id: string) {
+    const apt = await this.prisma.appointment.findUnique({ where: { id } });
+    if (!apt) throw new NotFoundException('Agendamento não encontrado');
+    if (apt.status === 'completed') throw new ForbiddenException('Não é possível excluir um agendamento já concluído');
+    return this.prisma.appointment.delete({ where: { id } });
   }
 }

@@ -858,6 +858,16 @@ async function patch(path, body = {}) {
   return r.json();
 }
 
+async function del(path) {
+  const r = await fetch(API + path, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${TOKEN}` }
+  });
+  if (r.status === 401) { logout(); return null; }
+  if (r.status === 204 || r.headers.get('content-length') === '0') return {};
+  return r.json();
+}
+
 // ============================================================
 // AUTH
 // ============================================================
@@ -1070,6 +1080,7 @@ async function loadAgenda(date) {
           ${a.status === 'scheduled' ? `<button class="btn btn-warning btn-sm" onclick="iniciarAtendimento('${a.id}')">▶ Iniciar</button>` : ''}
           ${a.status === 'in_progress' ? `<button class="btn btn-success btn-sm" onclick="abrirConcluir('${a.id}','${(a.pet?.name||'').replace(/'/g,'')}','${(a.client?.name||'').replace(/'/g,'')}',${a.priceCharged},'${a.clientPackageId||''}')">✓ Concluir</button>` : ''}
           ${a.status === 'completed' ? `<span style="font-size:11px;color:var(--green);">✓ ${(a.paymentMethod||'').toUpperCase()}</span>` : ''}
+          ${a.status !== 'completed' && a.status !== 'in_progress' ? `<button class="btn btn-danger btn-sm" onclick="excluirAgendamento('${a.id}')">🗑 Excluir</button>` : `<button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="excluirAgendamento('${a.id}')">🗑</button>`}
         </td>
       </tr>
     `).join('');
@@ -1082,6 +1093,13 @@ async function iniciarAtendimento(id) {
   const r = await patch('/appointments/' + id + '/start');
   if (r.id) { showToast('Atendimento iniciado! 🐾', 'success'); loadDashboard(); loadAgenda(); }
   else showToast('Erro ao iniciar atendimento', 'error');
+}
+
+async function excluirAgendamento(id) {
+  if (!confirm('Tem certeza que deseja excluir este agendamento?')) return;
+  const r = await del('/appointments/' + id);
+  if (r !== null) { showToast('Agendamento excluído!', 'success'); loadDashboard(); loadAgenda(); }
+  else showToast('Erro ao excluir agendamento', 'error');
 }
 
 let currentAptIsPackage = false;
@@ -1176,12 +1194,22 @@ function renderClientes(clientes) {
           ${(c.pets || []).map(p => `<span class="svc-badge svc-banho" style="margin-right:4px;">${p.name}</span>`).join('')}
         </td>
         <td style="color:var(--muted);font-size:12px;">${c.email || '-'}</td>
-        <td><button class="btn btn-ghost btn-sm" onclick="abrirModalPet('${c.id}','${c.name.replace(/'/g, '')}')">+ Pet</button></td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="abrirModalPet('${c.id}','${c.name.replace(/'/g, '')}')">+ Pet</button>
+          <button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="excluirCliente('${c.id}','${c.name.replace(/'/g, '')}')">🗑</button>
+        </td>
       </tr>
     `).join('');
 }
 
 function searchClients(q) { if (q.length > 1) loadClientes(q); else loadClientes(); }
+
+async function excluirCliente(id, nome) {
+  if (!confirm(`Tem certeza que deseja excluir o cliente "${nome}"? Todos os pets e histórico serão removidos.`)) return;
+  const r = await del('/clients/' + id);
+  if (r !== null) { showToast('Cliente excluído!', 'success'); loadClientes(); }
+  else showToast('Erro ao excluir cliente', 'error');
+}
 
 async function salvarCliente() {
   const nome = document.getElementById('cli-nome').value;
