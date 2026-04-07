@@ -41,10 +41,10 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);
 
-  const port = process.env.PORT || 3000;
+  const port = parseInt(process.env.PORT || '3000', 10);
   await app.listen(port);
 
-  console.log(`\n🐾 PetShop API rodando em: http://localhost:${port}`);
+  console.log(`\n🐾 PetShop API rodando na porta: ${port}`);
   console.log(`📋 Documentação: http://localhost:${port}/docs`);
 }
 
