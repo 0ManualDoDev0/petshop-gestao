@@ -1,5 +1,5 @@
 [build]
-buildCommand = "npm ci && npm run build && npx prisma generate"
+buildCommand = "npm ci && npm run build && npx prisma generate && cp -r public dist/"
 
 [deploy]
 startCommand = "npx prisma migrate deploy && node dist/src/main.js"

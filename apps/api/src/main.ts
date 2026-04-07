@@ -7,7 +7,8 @@ import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useStaticAssets(join(__dirname, '..', '..', '..', 'public'));
+  const publicPath = join(process.cwd(), 'public');
+  app.useStaticAssets(publicPath);
 
   // CORS — permitir web app e mobile
   app.enableCors({
