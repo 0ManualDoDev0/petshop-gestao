@@ -681,9 +681,10 @@
     </div>
     <div class="form-group" id="ag-pacote-group" style="display:none;">
       <label class="form-label">Pacote Ativo do Cliente</label>
-      <select class="form-input" id="ag-pacote">
+      <select class="form-input" id="ag-pacote" onchange="onPacoteChange(this)">
         <option value="">Selecione um pacote...</option>
       </select>
+      <div id="ag-pacote-alert" style="display:none;margin-top:8px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;"></div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-ghost" onclick="closeModal('modal-agendar')">Cancelar</button>
@@ -1951,6 +1952,38 @@ function abrirModalAgendar() {
   openModal('modal-agendar');
 }
 
+function onPacoteChange(sel) {
+  const alertEl = document.getElementById('ag-pacote-alert');
+  if (!alertEl) return;
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) { alertEl.style.display = 'none'; return; }
+
+  const usado = parseInt(opt.dataset.usado || '0');
+  const total = parseInt(opt.dataset.total || '0');
+  const dias = parseInt(opt.dataset.dias || '99');
+  const restantes = total - usado;
+
+  let msg = '';
+  let cor = '';
+
+  if (restantes === 1) {
+    msg = `⚠️ Última sessão do pacote! Após este agendamento o pacote será esgotado.`;
+    cor = 'rgba(251,191,36,.15);color:#d97706;border:1px solid rgba(251,191,36,.4)';
+  } else if (dias <= 3) {
+    msg = `🚨 Pacote vence em ${dias} dia(s)! Restam ${restantes} sessões.`;
+    cor = 'rgba(248,113,113,.12);color:#ef4444;border:1px solid rgba(248,113,113,.3)';
+  } else if (dias <= 7) {
+    msg = `⚠️ Pacote vence em ${dias} dias. Restam ${restantes} sessões.`;
+    cor = 'rgba(251,191,36,.15);color:#d97706;border:1px solid rgba(251,191,36,.4)';
+  } else {
+    msg = `✅ ${restantes} de ${total} sessões disponíveis.`;
+    cor = 'rgba(52,211,153,.12);color:#059669;border:1px solid rgba(52,211,153,.3)';
+  }
+
+  alertEl.style.cssText = `display:block;margin-top:8px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;background:${cor}`;
+  alertEl.textContent = msg;
+}
+
 function togglePacoteField(checked) {
   const pkgGroup = document.getElementById('ag-pacote-group');
   const pkgSel = document.getElementById('ag-pacote');
@@ -2011,9 +2044,23 @@ function selecionarCliente(id, name, petsStr) {
   get('/packages/client/' + id).then(pkgs => {
     const pkgGroup = document.getElementById('ag-pacote-group');
     const pkgSel = document.getElementById('ag-pacote');
+    const alertEl = document.getElementById('ag-pacote-alert');
+    const now = new Date();
     const active = (pkgs || []).filter(p => p.status === 'active' && p.sessionsUsed < p.sessionsTotal);
+
+    // Guardar dados dos pacotes no select para uso posterior
     pkgSel.innerHTML = '<option value="">Selecione um pacote...</option>' +
-      active.map(p => `<option value="${p.id}">${p.package?.name} (${p.sessionsTotal - p.sessionsUsed} sessões restantes)</option>`).join('');
+      active.map(p => {
+        const restantes = p.sessionsTotal - p.sessionsUsed;
+        const expiry = new Date(p.expiresAt);
+        const diasRestantes = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+        const expiryStr = expiry.toLocaleDateString('pt-BR');
+        const aviso = diasRestantes <= 7 ? ` ⚠️ vence em ${diasRestantes}d` : '';
+        return `<option value="${p.id}" data-usado="${p.sessionsUsed}" data-total="${p.sessionsTotal}" data-expiry="${p.expiresAt}" data-dias="${diasRestantes}">${p.package?.name} — ${restantes}/${p.sessionsTotal} restantes · vence ${expiryStr}${aviso}</option>`;
+      }).join('');
+
+    if (alertEl) alertEl.style.display = 'none';
+
     const isPacoteToggle = document.getElementById('ag-is-pacote')?.checked;
     if (isPacoteToggle && active.length > 0) {
       pkgGroup.style.display = 'block';
