@@ -10,4 +10,19 @@ export class HotelService {
     const days = Math.ceil((Date.now() - stay!.checkIn.getTime()) / 86400000);
     return this.prisma.hotelStay.update({ where: { id }, data: { status: 'checked_out', checkOut: new Date(), totalDays: days, totalAmount: days * Number(stay!.dailyRate) } });
   }
+  update(id: string, data: any) {
+    const allowed: any = {};
+    if (data.dailyRate !== undefined) allowed.dailyRate = data.dailyRate;
+    if (data.checkIn !== undefined) allowed.checkIn = new Date(data.checkIn);
+    if (data.feedingNotes !== undefined) allowed.feedingNotes = data.feedingNotes;
+    if (data.medications !== undefined) allowed.medications = data.medications;
+    return this.prisma.hotelStay.update({ where: { id }, data: allowed, include: { pet: { include: { client: true } } } });
+  }
+  getHistory() {
+    return this.prisma.hotelStay.findMany({
+      orderBy: { checkIn: 'desc' },
+      take: 50,
+      include: { pet: { include: { client: true } } },
+    });
+  }
 }

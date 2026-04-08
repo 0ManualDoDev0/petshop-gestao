@@ -359,6 +359,21 @@
       <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Pets Hospedados Agora</div>
       <div id="hotel-list"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
     </div>
+    <div class="card" style="margin-top:16px;">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px;">Resumo do Hotel</div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+        <div class="kpi green"><div class="kpi-icon">🐕</div><div class="kpi-label">Hospedados Agora</div><div class="kpi-value" id="hotel-total-ativos">-</div></div>
+        <div class="kpi"><div class="kpi-icon">📋</div><div class="kpi-label">Diárias em Aberto</div><div class="kpi-value" id="hotel-diarias-abertas" style="color:var(--yellow)">-</div></div>
+        <div class="kpi blue"><div class="kpi-icon">💰</div><div class="kpi-label">Faturamento do Mês</div><div class="kpi-value" id="hotel-mes-valor">-</div></div>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;">HISTÓRICO DE CHECK-INS E CHECK-OUTS</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Pet</th><th>Cliente</th><th>Check-in</th><th>Check-out</th><th>Diárias</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody id="hotel-historico"><tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <!-- CLIENTES -->
@@ -813,6 +828,36 @@
   </div>
 </div>
 
+<!-- MODAL: Editar Estadia -->
+<div class="modal-overlay" id="modal-editar-stay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Editar Estadia</div>
+      <button class="modal-close" onclick="closeModal('modal-editar-stay')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Diária (R$)</label>
+      <input type="number" class="form-input" id="edit-stay-diaria" step="0.01" min="0" placeholder="0,00">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data Check-in</label>
+      <input type="datetime-local" class="form-input" id="edit-stay-checkin">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Obs. Alimentação</label>
+      <input type="text" class="form-input" id="edit-stay-alimentacao" placeholder="Observações sobre alimentação...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Medicações</label>
+      <input type="text" class="form-input" id="edit-stay-medicacoes" placeholder="Medicações...">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-editar-stay')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoStay()">✓ Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Adicionar Pet -->
 <div class="modal-overlay" id="modal-pet">
   <div class="modal">
@@ -1064,7 +1109,7 @@ function showPage(name) {
     if (item.getAttribute('onclick')?.includes("'" + name + "'")) item.classList.add('active');
   });
   if (name === 'agenda') loadAgenda();
-  if (name === 'hotel') loadHotel();
+  if (name === 'hotel') { loadHotel(); loadHotelResumo(); }
   if (name === 'clientes') loadClientes();
   if (name === 'financeiro') loadFinanceiro();
   if (name === 'pacotes') loadPacotes();
@@ -1419,6 +1464,7 @@ async function loadHotel() {
       <div style="text-align:right;">
         <div style="font-size:18px;font-weight:600;color:var(--green);">R$ ${Number(h.dailyRate).toFixed(2).replace('.', ',')}/dia</div>
         <button class="btn btn-warning btn-sm" style="margin-top:8px;" onclick="fazerCheckout('${h.id}')">Check-out</button>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px;margin-left:6px;" onclick="abrirEditarStay('${h.id}', ${h.dailyRate}, '${h.checkIn}', '${h.feedingNotes||''}', '${h.medications||''}')">✏️</button>
       </div>
     </div>
   `).join('');
@@ -1426,7 +1472,83 @@ async function loadHotel() {
 
 async function fazerCheckout(id) {
   const r = await patch('/hotel/' + id + '/check-out');
-  if (r.id) { showToast('Check-out realizado! 🐾', 'success'); loadHotel(); loadDashboard(); }
+  if (r.id) { showToast('Check-out realizado! 🐾', 'success'); loadHotel(); loadHotelResumo(); loadDashboard(); }
+}
+
+let editStayId = null;
+
+function abrirEditarStay(id, dailyRate, checkIn, feedingNotes, medications) {
+  editStayId = id;
+  document.getElementById('edit-stay-diaria').value = Number(dailyRate).toFixed(2);
+  const d = new Date(checkIn);
+  document.getElementById('edit-stay-checkin').value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  document.getElementById('edit-stay-alimentacao').value = feedingNotes;
+  document.getElementById('edit-stay-medicacoes').value = medications;
+  openModal('modal-editar-stay');
+}
+
+async function salvarEdicaoStay() {
+  if (!editStayId) return;
+  const dailyRate = parseFloat(document.getElementById('edit-stay-diaria').value) || 0;
+  const checkInVal = document.getElementById('edit-stay-checkin').value;
+  const r = await patch('/hotel/' + editStayId, {
+    dailyRate,
+    checkIn: checkInVal ? new Date(checkInVal).toISOString() : undefined,
+    feedingNotes: document.getElementById('edit-stay-alimentacao').value || null,
+    medications: document.getElementById('edit-stay-medicacoes').value || null,
+  });
+  if (r.id) { closeModal('modal-editar-stay'); showToast('✅ Estadia atualizada!', 'success'); loadHotel(); }
+  else showToast('Erro ao atualizar: ' + (r.message || ''), 'error');
+}
+
+async function loadHotelResumo() {
+  const history = await get('/hotel/history');
+  if (!history) return;
+
+  // KPIs
+  const ativos = history.filter(h => h.status === 'active');
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const mesFaturamento = history
+    .filter(h => h.status === 'checked_out' && new Date(h.checkOut) >= startOfMonth)
+    .reduce((s, h) => s + Number(h.totalAmount || 0), 0);
+
+  // Diárias abertas = sum of days so far for active stays
+  const diasAbertos = ativos.reduce((s, h) => {
+    return s + Math.ceil((Date.now() - new Date(h.checkIn).getTime()) / 86400000);
+  }, 0);
+
+  const el = document.getElementById('hotel-total-ativos');
+  if (el) el.textContent = ativos.length;
+  const el2 = document.getElementById('hotel-diarias-abertas');
+  if (el2) el2.textContent = diasAbertos;
+  const el3 = document.getElementById('hotel-mes-valor');
+  if (el3) el3.textContent = 'R$ ' + mesFaturamento.toFixed(2).replace('.', ',');
+
+  // History table
+  const tbody = document.getElementById('hotel-historico');
+  if (!tbody) return;
+  if (history.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);">Nenhum histórico</td></tr>';
+    return;
+  }
+  tbody.innerHTML = history.map(h => {
+    const checkIn = new Date(h.checkIn).toLocaleDateString('pt-BR');
+    const checkOut = h.checkOut ? new Date(h.checkOut).toLocaleDateString('pt-BR') : '—';
+    const total = h.totalAmount ? 'R$ ' + Number(h.totalAmount).toFixed(2).replace('.', ',') : '—';
+    const statusBadge = h.status === 'active'
+      ? `<span class="badge badge-in_progress">Hospedado</span>`
+      : `<span class="badge badge-completed">Check-out</span>`;
+    return `<tr>
+      <td style="font-weight:500;">${h.pet?.name || '—'}</td>
+      <td style="font-size:13px;">${h.pet?.client?.name || '—'}</td>
+      <td style="font-size:13px;">${checkIn}</td>
+      <td style="font-size:13px;">${checkOut}</td>
+      <td style="font-size:13px;">${h.totalDays || '—'}</td>
+      <td style="font-weight:600;color:var(--green);">${total}</td>
+      <td>${statusBadge}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ============================================================
@@ -2115,20 +2237,17 @@ function selecionarClienteCheckin(id, name, petsStr) {
     petGroup.style.display = 'block';
   } else {
     petGroup.style.display = 'none';
-    showToast('Este cliente não tem pets cadastrados. Adicione um pet primeiro.', 'error');
   }
 }
 
 async function confirmarCheckin() {
   if (!selectedCheckinClientId) { showToast('Selecione um cliente!', 'error'); return; }
   const petId = document.getElementById('ci-pet').value;
-  if (!petId) { showToast('Selecione o pet!', 'error'); return; }
   const dailyRate = parseFloat(document.getElementById('ci-diaria').value);
   const checkInStr = document.getElementById('ci-data').value;
-  if (!dailyRate || !checkInStr) { showToast('Preencha diária e data!', 'error'); return; }
   const r = await post('/hotel/check-in', {
-    petId,
-    dailyRate,
+    petId: petId || undefined,
+    dailyRate: dailyRate || 0,
     checkIn: new Date(checkInStr).toISOString(),
     feedingNotes: document.getElementById('ci-alimentacao').value || null,
     medications: document.getElementById('ci-medicacoes').value || null,
@@ -2136,7 +2255,7 @@ async function confirmarCheckin() {
   if (r.id) {
     closeModal('modal-checkin');
     showToast('✅ Check-in realizado!', 'success');
-    loadHotel(); loadDashboard();
+    loadHotel(); loadHotelResumo(); loadDashboard();
   } else showToast('Erro no check-in: ' + (r.message || ''), 'error');
 }
 
