@@ -806,12 +806,19 @@
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Diária (R$)</label>
-        <input class="form-input" type="number" id="ci-diaria" value="80" min="0">
+        <input class="form-input" type="number" id="ci-diaria" value="80" min="0" oninput="calcularTotalCheckin()">
       </div>
       <div class="form-group">
         <label class="form-label">Data/Hora Check-in</label>
-        <input class="form-input" type="datetime-local" id="ci-data">
+        <input class="form-input" type="datetime-local" id="ci-data" oninput="calcularTotalCheckin()">
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data/Hora Check-out <span style="font-size:11px;color:var(--muted);">(opcional)</span></label>
+      <input class="form-input" type="datetime-local" id="ci-checkout" oninput="calcularTotalCheckin()">
+    </div>
+    <div id="ci-total-preview" style="display:none;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:4px;">
+      <span style="color:var(--muted);">Estimativa:</span> <strong id="ci-total-dias"></strong> dia(s) × R$ <strong id="ci-total-diaria"></strong> = <strong style="color:var(--green);font-size:15px;" id="ci-total-valor"></strong>
     </div>
     <div class="form-group">
       <label class="form-label">Obs. de Alimentação</label>
@@ -2205,6 +2212,8 @@ function abrirModalCheckin() {
   selectedCheckinClientId = null;
   document.getElementById('ci-cliente').value = '';
   document.getElementById('ci-pet-group').style.display = 'none';
+  document.getElementById('ci-checkout').value = '';
+  document.getElementById('ci-total-preview').style.display = 'none';
   const now = new Date();
   document.getElementById('ci-data').value = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   openModal('modal-checkin');
@@ -2240,18 +2249,41 @@ function selecionarClienteCheckin(id, name, petsStr) {
   }
 }
 
+function calcularTotalCheckin() {
+  const diaria = parseFloat(document.getElementById('ci-diaria').value) || 0;
+  const checkInVal = document.getElementById('ci-data').value;
+  const checkOutVal = document.getElementById('ci-checkout').value;
+  const preview = document.getElementById('ci-total-preview');
+  if (!diaria || !checkInVal || !checkOutVal) { preview.style.display = 'none'; return; }
+  const dias = Math.max(1, Math.ceil((new Date(checkOutVal) - new Date(checkInVal)) / 86400000));
+  const total = dias * diaria;
+  document.getElementById('ci-total-dias').textContent = dias;
+  document.getElementById('ci-total-diaria').textContent = diaria.toFixed(2).replace('.', ',');
+  document.getElementById('ci-total-valor').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+  preview.style.display = 'block';
+}
+
 async function confirmarCheckin() {
   if (!selectedCheckinClientId) { showToast('Selecione um cliente!', 'error'); return; }
   const petId = document.getElementById('ci-pet').value;
-  const dailyRate = parseFloat(document.getElementById('ci-diaria').value);
+  const dailyRate = parseFloat(document.getElementById('ci-diaria').value) || 0;
   const checkInStr = document.getElementById('ci-data').value;
-  const r = await post('/hotel/check-in', {
+  const checkOutStr = document.getElementById('ci-checkout').value;
+  const body: any = {
     petId: petId || undefined,
-    dailyRate: dailyRate || 0,
-    checkIn: new Date(checkInStr).toISOString(),
+    dailyRate,
+    checkIn: checkInStr ? new Date(checkInStr).toISOString() : new Date().toISOString(),
     feedingNotes: document.getElementById('ci-alimentacao').value || null,
     medications: document.getElementById('ci-medicacoes').value || null,
-  });
+  };
+  if (checkOutStr) {
+    const dias = Math.max(1, Math.ceil((new Date(checkOutStr) - new Date(checkInStr || Date.now())) / 86400000));
+    body.checkOut = new Date(checkOutStr).toISOString();
+    body.status = 'checked_out';
+    body.totalDays = dias;
+    body.totalAmount = dias * dailyRate;
+  }
+  const r = await post('/hotel/check-in', body);
   if (r.id) {
     closeModal('modal-checkin');
     showToast('✅ Check-in realizado!', 'success');
