@@ -796,8 +796,8 @@
     </div>
     <div class="form-group">
       <label class="form-label">Buscar Cliente</label>
-      <input class="form-input" type="text" id="ci-cliente" placeholder="Digite o nome do dono..." oninput="buscarClienteCheckin(this.value)">
-      <div id="ci-cliente-result" style="background:var(--surface2);border-radius:8px;margin-top:4px;display:none;"></div>
+      <input class="form-input" type="text" id="ci-cliente" placeholder="Digite o nome ou telefone..." oninput="buscarClienteCheckin(this.value)" onfocus="buscarClienteCheckin(this.value)">
+      <div id="ci-cliente-result" style="background:var(--surface2);border-radius:8px;margin-top:4px;display:none;max-height:220px;overflow-y:auto;"></div>
     </div>
     <div class="form-group" id="ci-pet-group" style="display:none;">
       <label class="form-label">Pet</label>
@@ -1101,6 +1101,17 @@ function logout() {
   localStorage.removeItem('petshop_token');
   location.reload();
 }
+
+// Fechar dropdowns de busca ao clicar fora
+document.addEventListener('click', function(e) {
+  const dropdowns = ['ci-cliente-result', 'ag-cliente-result'];
+  dropdowns.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.contains(e.target) && e.target.id !== 'ci-cliente' && e.target.id !== 'ag-cliente') {
+      el.style.display = 'none';
+    }
+  });
+});
 
 // ============================================================
 // API STATUS
@@ -2279,11 +2290,10 @@ function abrirModalCheckin() {
 
 async function buscarClienteCheckin(q) {
   const el = document.getElementById('ci-cliente-result');
-  if (q.length < 2) { el.style.display = 'none'; return; }
-  const clientes = await get('/clients?q=' + encodeURIComponent(q));
+  const clientes = await get('/clients' + (q && q.length >= 1 ? '?q=' + q : ''));
   if (!clientes || clientes.length === 0) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  el.innerHTML = clientes.slice(0, 6).map(c => {
+  el.innerHTML = clientes.map(c => {
     const petsStr = (c.pets || []).map(p => p.id + ':' + p.name.replace(/[':]/g, '')).join('|');
     const nameEsc = c.name.replace(/'/g, '');
     return `<div style="padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);transition:background .15s;" onmouseenter="this.style.background='var(--surface3)'" onmouseleave="this.style.background=''" onclick="selecionarClienteCheckin('${c.id}','${nameEsc}','${petsStr}')">
