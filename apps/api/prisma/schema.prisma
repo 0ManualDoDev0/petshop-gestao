@@ -118,6 +118,7 @@ model Client {
   pets          Pet[]
   packages      ClientPackage[]
   appointments  Appointment[]
+  hotelStays    HotelStay[]
 
   @@map("clients")
 }
@@ -225,6 +226,7 @@ model Appointment {
 model HotelStay {
   id           String    @id @default(uuid())
   petId        String?   @map("pet_id")
+  clientId     String?   @map("client_id")
   checkIn      DateTime  @map("check_in")
   checkOut     DateTime? @map("check_out")
   dailyRate    Decimal   @db.Decimal(10, 2) @map("daily_rate")
@@ -238,7 +240,8 @@ model HotelStay {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  pet Pet? @relation(fields: [petId], references: [id])
+  pet    Pet?    @relation(fields: [petId], references: [id])
+  client Client? @relation(fields: [clientId], references: [id])
 
   @@map("hotel_stays")
 }

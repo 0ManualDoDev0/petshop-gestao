@@ -1495,8 +1495,8 @@ async function loadHotel() {
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;display:flex;align-items:center;gap:16px;">
       <div style="font-size:32px;">🐕</div>
       <div style="flex:1;">
-        <div style="font-weight:600;">${h.pet?.name || '-'}</div>
-        <div style="font-size:13px;color:var(--muted);">👤 ${h.pet?.client?.name || '-'} · 📞 ${h.pet?.client?.phone || '-'}</div>
+        <div style="font-weight:600;">${h.pet?.name || '—'}</div>
+        <div style="font-size:13px;color:var(--muted);">👤 ${h.pet?.client?.name || h.client?.name || '—'} · 📞 ${h.pet?.client?.phone || h.client?.phone || '—'}</div>
         <div style="font-size:12px;color:var(--accent2);margin-top:4px;">Check-in: ${new Date(h.checkIn).toLocaleDateString('pt-BR')}</div>
       </div>
       <div style="text-align:right;">
@@ -1607,9 +1607,11 @@ async function loadHotelResumo() {
     const statusBadge = h.status === 'active'
       ? `<span class="badge badge-in_progress">Hospedado</span>`
       : `<span class="badge badge-completed">Check-out</span>`;
+    const petName = h.pet?.name || '—';
+    const clientName = h.pet?.client?.name || h.client?.name || '—';
     return `<tr>
-      <td style="font-weight:500;">${h.pet?.name || '—'}</td>
-      <td style="font-size:13px;">${h.pet?.client?.name || '—'}</td>
+      <td style="font-weight:500;">${petName}</td>
+      <td style="font-size:13px;">${clientName}</td>
       <td style="font-size:13px;">${checkIn}</td>
       <td style="font-size:13px;">${checkOut}</td>
       <td style="font-size:13px;">${h.totalDays || '—'}</td>
@@ -2339,6 +2341,7 @@ async function confirmarCheckin() {
   const checkInStr = document.getElementById('ci-data').value;
   const checkOutStr = document.getElementById('ci-checkout').value;
   const body = {
+    clientId: selectedCheckinClientId,
     petId: petId || undefined,
     dailyRate,
     checkIn: checkInStr ? new Date(checkInStr).toISOString() : new Date().toISOString(),
