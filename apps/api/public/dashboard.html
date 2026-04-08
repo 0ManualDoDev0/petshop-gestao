@@ -620,6 +620,25 @@
   </div>
 </div>
 
+<!-- MODAL: Editar Cliente -->
+<div class="modal-overlay" id="modal-editar-cliente">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Editar Cliente</div>
+      <button class="modal-close" onclick="closeModal('modal-editar-cliente')">×</button>
+    </div>
+    <div class="form-group"><label class="form-label">Nome completo</label><input class="form-input" type="text" id="edit-cli-nome"></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">WhatsApp</label><input class="form-input" type="tel" id="edit-cli-tel"></div>
+      <div class="form-group"><label class="form-label">E-mail</label><input class="form-input" type="email" id="edit-cli-email"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-editar-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoCliente()">✓ Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Agendar -->
 <div class="modal-overlay" id="modal-agendar">
   <div class="modal">
@@ -1196,6 +1215,7 @@ function renderClientes(clientes) {
         <td style="color:var(--muted);font-size:12px;">${c.email || '-'}</td>
         <td>
           <button class="btn btn-ghost btn-sm" onclick="abrirModalPet('${c.id}','${c.name.replace(/'/g, '')}')">+ Pet</button>
+          <button class="btn btn-warning btn-sm" style="margin-left:4px;" onclick="abrirEditarCliente('${c.id}','${c.name.replace(/'/g,'')}','${(c.phone||'').replace(/'/g,'')}','${(c.email||'').replace(/'/g,'')}')">✏️</button>
           <button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="excluirCliente('${c.id}','${c.name.replace(/'/g, '')}')">🗑</button>
         </td>
       </tr>
@@ -1209,6 +1229,30 @@ async function excluirCliente(id, nome) {
   const r = await del('/clients/' + id);
   if (r !== null) { showToast('Cliente excluído!', 'success'); loadClientes(); }
   else showToast('Erro ao excluir cliente', 'error');
+}
+
+let editClienteId = null;
+
+function abrirEditarCliente(id, nome, tel, email) {
+  editClienteId = id;
+  document.getElementById('edit-cli-nome').value = nome;
+  document.getElementById('edit-cli-tel').value = tel;
+  document.getElementById('edit-cli-email').value = email === '-' ? '' : email;
+  openModal('modal-editar-cliente');
+}
+
+async function salvarEdicaoCliente() {
+  const nome = document.getElementById('edit-cli-nome').value;
+  const tel = document.getElementById('edit-cli-tel').value;
+  if (!nome || !tel) { showToast('Preencha nome e telefone!', 'error'); return; }
+  const r = await fetch(API + '/clients/' + editClienteId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+    body: JSON.stringify({ name: nome, phone: tel, email: document.getElementById('edit-cli-email').value })
+  });
+  const data = await r.json();
+  if (data.id) { closeModal('modal-editar-cliente'); showToast('✅ Cliente atualizado!', 'success'); loadClientes(); }
+  else showToast('Erro ao atualizar cliente', 'error');
 }
 
 async function salvarCliente() {

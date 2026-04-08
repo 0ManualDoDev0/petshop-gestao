@@ -25,7 +25,20 @@ export class ClientsService {
     return this.prisma.client.update({ where: { id }, data });
   }
 
-  remove(id: string) {
-    return this.prisma.client.delete({ where: { id } });
+  async remove(id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      // Remove cash entries linked to appointments of this client
+      await tx.cashEntry.deleteMany({
+        where: { appointment: { clientId: id } },
+      });
+      // Remove appointments
+      await tx.appointment.deleteMany({ where: { clientId: id } });
+      // Remove client packages
+      await tx.clientPackage.deleteMany({ where: { clientId: id } });
+      // Remove pets
+      await tx.pet.deleteMany({ where: { clientId: id } });
+      // Remove client
+      return tx.client.delete({ where: { id } });
+    });
   }
 }
