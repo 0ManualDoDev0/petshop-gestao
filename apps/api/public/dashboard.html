@@ -333,7 +333,7 @@
   <!-- AGENDA -->
   <div id="page-agenda" class="page">
     <div class="page-header">
-      <div><div class="page-title">Agenda</div><div class="page-subtitle">Agendamentos do dia</div></div>
+      <div><div class="page-title">Agenda</div><div class="page-subtitle">Agendamentos do dia <span id="agenda-counter" style="display:none;background:var(--accent);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin-left:6px;vertical-align:middle;"></span></div></div>
       <div style="display:flex;gap:10px;">
         <input type="date" class="form-input" id="agenda-date" style="width:160px;" onchange="loadAgenda(this.value)">
         <button class="btn btn-primary" onclick="abrirModalAgendar()">+ Agendar</button>
@@ -1318,6 +1318,13 @@ async function loadAgenda(date) {
   if (!date) { date = new Date().toISOString().split('T')[0]; input.value = date; }
   const apts = await get('/appointments?date=' + date);
   if (!apts) return;
+  const counter = document.getElementById('agenda-counter');
+  if (apts.length > 0) {
+    counter.textContent = apts.length + ' agendado' + (apts.length !== 1 ? 's' : '');
+    counter.style.display = 'inline-block';
+  } else {
+    counter.style.display = 'none';
+  }
   document.getElementById('agenda-table').innerHTML = apts.length === 0
     ? '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">Nenhum agendamento</td></tr>'
     : apts.map(a => `
