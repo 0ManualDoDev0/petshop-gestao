@@ -369,8 +369,8 @@
       <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;">HISTÓRICO DE CHECK-INS E CHECK-OUTS</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Pet</th><th>Cliente</th><th>Check-in</th><th>Check-out</th><th>Diárias</th><th>Total</th><th>Status</th></tr></thead>
-          <tbody id="hotel-historico"><tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);">Carregando...</td></tr></tbody>
+          <thead><tr><th>Pet</th><th>Cliente</th><th>Check-in</th><th>Check-out</th><th>Diárias</th><th>Total</th><th>Status</th><th></th></tr></thead>
+          <tbody id="hotel-historico"><tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted);">Carregando...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1543,7 +1543,7 @@ async function loadHotelResumo() {
   const tbody = document.getElementById('hotel-historico');
   if (!tbody) return;
   if (history.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted);">Nenhum histórico</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted);">Nenhum histórico</td></tr>';
     return;
   }
   tbody.innerHTML = history.map(h => {
@@ -1553,6 +1553,8 @@ async function loadHotelResumo() {
     const statusBadge = h.status === 'active'
       ? `<span class="badge badge-in_progress">Hospedado</span>`
       : `<span class="badge badge-completed">Check-out</span>`;
+    const feedingEsc = (h.feedingNotes || '').replace(/'/g, '').replace(/\\/g, '');
+    const medsEsc = (h.medications || '').replace(/'/g, '').replace(/\\/g, '');
     return `<tr>
       <td style="font-weight:500;">${h.pet?.name || '—'}</td>
       <td style="font-size:13px;">${h.pet?.client?.name || '—'}</td>
@@ -1561,6 +1563,7 @@ async function loadHotelResumo() {
       <td style="font-size:13px;">${h.totalDays || '—'}</td>
       <td style="font-weight:600;color:var(--green);">${total}</td>
       <td>${statusBadge}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="abrirEditarStay('${h.id}',${h.dailyRate},'${h.checkIn}','${feedingEsc}','${medsEsc}')">✏️</button></td>
     </tr>`;
   }).join('');
 }
@@ -2218,27 +2221,31 @@ let selectedCheckinClientId = null;
 function abrirModalCheckin() {
   selectedCheckinClientId = null;
   document.getElementById('ci-cliente').value = '';
+  document.getElementById('ci-cliente-result').style.display = 'none';
   document.getElementById('ci-pet-group').style.display = 'none';
   document.getElementById('ci-checkout').value = '';
   document.getElementById('ci-total-preview').style.display = 'none';
+  document.getElementById('ci-alimentacao').value = '';
+  document.getElementById('ci-medicacoes').value = '';
   const now = new Date();
   document.getElementById('ci-data').value = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   openModal('modal-checkin');
 }
 
 async function buscarClienteCheckin(q) {
-  if (q.length < 2) { document.getElementById('ci-cliente-result').style.display = 'none'; return; }
-  const clientes = await get('/clients?q=' + q);
   const el = document.getElementById('ci-cliente-result');
+  if (q.length < 2) { el.style.display = 'none'; return; }
+  const clientes = await get('/clients?q=' + encodeURIComponent(q));
   if (!clientes || clientes.length === 0) { el.style.display = 'none'; return; }
   el.style.display = 'block';
-  el.innerHTML = clientes.slice(0, 5).map(c => `
-    <div style="padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);"
-         onclick="selecionarClienteCheckin('${c.id}','${c.name.replace(/'/g,'')}','${(c.pets||[]).map(p=>p.id+':'+p.name.replace(/'/g,'')).join('|')}')">
+  el.innerHTML = clientes.slice(0, 6).map(c => {
+    const petsStr = (c.pets || []).map(p => p.id + ':' + p.name.replace(/[':]/g, '')).join('|');
+    const nameEsc = c.name.replace(/'/g, '');
+    return `<div style="padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);transition:background .15s;" onmouseenter="this.style.background='var(--surface3)'" onmouseleave="this.style.background=''" onclick="selecionarClienteCheckin('${c.id}','${nameEsc}','${petsStr}')">
       <strong>${c.name}</strong> <span style="color:var(--muted);">${c.phone}</span>
-      <div style="font-size:11px;color:var(--muted);">${(c.pets||[]).map(p=>p.name).join(', ') || 'Sem pets cadastrados'}</div>
-    </div>
-  `).join('');
+      <div style="font-size:11px;color:var(--muted);">${(c.pets || []).map(p => p.name).join(', ') || 'Sem pets cadastrados'}</div>
+    </div>`;
+  }).join('');
 }
 
 function selecionarClienteCheckin(id, name, petsStr) {
