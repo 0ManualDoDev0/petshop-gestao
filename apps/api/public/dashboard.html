@@ -348,7 +348,7 @@
     <div class="card">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Cliente</th><th>Telefone</th><th>Pets</th><th>Instagram</th><th></th></tr></thead>
+          <thead><tr><th>Cliente</th><th>Telefone</th><th>Instagram</th><th></th></tr></thead>
           <tbody id="clientes-table"><tr><td colspan="4" style="text-align:center;padding:30px;color:var(--muted);">Carregando...</td></tr></tbody>
         </table>
       </div>
@@ -1215,9 +1215,6 @@ function renderClientes(clientes) {
           ${(!c.phone || !c.email) ? `<span title="Cadastro incompleto" style="cursor:default;margin-left:4px;">⚠️</span>` : ''}
         </td>
         <td>${c.phone || '<span style="color:var(--muted);font-size:12px;">—</span>'}</td>
-        <td>
-          ${(c.pets || []).map(p => `<span class="svc-badge svc-banho" style="margin-right:4px;">${p.name}</span>`).join('')}
-        </td>
         <td style="color:var(--muted);font-size:12px;">${c.email || '-'}</td>
         <td>
           <button class="btn btn-ghost btn-sm" onclick="abrirModalPet('${c.id}','${c.name.replace(/'/g, '')}')">+ Pet</button>
@@ -1996,10 +1993,9 @@ async function salvarAgendamento() {
   const dt = document.getElementById('ag-datetime').value;
   if (!serviceId || !employeeId || !dt) { showToast('Preencha todos os campos!', 'error'); return; }
 
-  // Pet: preferir select (quando cliente tem múltiplos pets), senão selectedPetId
+  // Pet: opcional — usa select se visível, senão selectedPetId
   const petEl = document.getElementById('ag-pet');
-  const petId = (petEl?.style.display !== 'none' && petEl?.value) ? petEl.value : selectedPetId;
-  if (!petId) { showToast('Selecione um pet!', 'error'); return; }
+  const petId = (petEl?.style.display !== 'none' && petEl?.value) ? petEl.value : (selectedPetId || null);
 
   // Pacote opcional
   const clientPackageId = document.getElementById('ag-pacote')?.value || null;
