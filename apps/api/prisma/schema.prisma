@@ -233,6 +233,7 @@ model HotelStay {
   feedingNotes String?   @map("feeding_notes") @db.Text
   medications  String?   @db.Text
   status       String    @default("active") // active, checked_out
+  isPaid       Boolean   @default(false) @map("is_paid")
   notes        String?   @db.Text
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")

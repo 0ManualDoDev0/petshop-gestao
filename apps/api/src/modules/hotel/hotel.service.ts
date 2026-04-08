@@ -22,6 +22,10 @@ export class HotelService {
     if (Object.keys(petUpdate).length > 0) allowed.pet = { update: petUpdate };
     return this.prisma.hotelStay.update({ where: { id }, data: allowed, include: { pet: { include: { client: true } } } });
   }
+  async togglePaid(id: string) {
+    const stay = await this.prisma.hotelStay.findUnique({ where: { id } });
+    return this.prisma.hotelStay.update({ where: { id }, data: { isPaid: !stay!.isPaid } });
+  }
   remove(id: string) { return this.prisma.hotelStay.delete({ where: { id } }); }
   getHistory() {
     return this.prisma.hotelStay.findMany({

@@ -12,6 +12,7 @@ export class HotelController {
   @Get('history') getHistory() { return this.service.getHistory(); }
   @Post('check-in') checkIn(@Body() body: any) { return this.service.checkIn(body); }
   @Patch(':id/check-out') checkOut(@Param('id') id: string) { return this.service.checkOut(id); }
+  @Patch(':id/toggle-paid') togglePaid(@Param('id') id: string) { return this.service.togglePaid(id); }
   @Patch(':id') update(@Param('id') id: string, @Body() body: any) { return this.service.update(id, body); }
   @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
 }

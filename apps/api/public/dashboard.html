@@ -1537,15 +1537,24 @@ async function salvarEdicaoStay() {
     if (clientName && clientName !== h.pet?.client?.name) body.clientName = clientName;
   }
   const r = await patch('/hotel/' + editStayId, body);
-  if (r.id) { closeModal('modal-editar-stay'); showToast('✅ Estadia atualizada!', 'success'); loadHotel(); loadHotelResumo(); }
+  if (r.id) { closeModal('modal-editar-stay'); showToast('✅ Estadia atualizada!', 'success'); loadHotel(); loadHotelResumo(); loadDashboard(); }
   else showToast('Erro ao atualizar: ' + (r.message || ''), 'error');
 }
 
 async function excluirStay(id) {
   if (!confirm('Tem certeza que deseja excluir este registro de hospedagem?')) return;
   const r = await del('/hotel/' + id);
-  if (r !== null) { showToast('Registro excluído!', 'success'); loadHotel(); loadHotelResumo(); loadDashboard(); }
-  else showToast('Erro ao excluir registro', 'error');
+  if (r && r.id !== undefined || r && Object.keys(r).length === 0) {
+    delete stayCache[id];
+    showToast('Registro excluído!', 'success');
+    loadHotel(); loadHotelResumo(); loadDashboard();
+  } else showToast('Erro ao excluir registro', 'error');
+}
+
+async function togglePagamentoStay(id) {
+  const r = await patch('/hotel/' + id + '/toggle-paid');
+  if (r.id !== undefined) { loadHotelResumo(); }
+  else showToast('Erro ao atualizar pagamento', 'error');
 }
 
 async function loadHotelResumo() {
@@ -1595,7 +1604,8 @@ async function loadHotelResumo() {
       <td style="font-size:13px;">${h.totalDays || '—'}</td>
       <td style="font-weight:600;color:var(--green);">${total}</td>
       <td>${statusBadge}</td>
-      <td style="display:flex;gap:4px;">
+      <td style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="btn btn-sm" style="background:${h.isPaid ? 'var(--green)' : 'var(--yellow)'};color:#fff;min-width:76px;" onclick="togglePagamentoStay('${h.id}')">${h.isPaid ? '✓ Pago' : '⏳ Pendente'}</button>
         <button class="btn btn-ghost btn-sm" onclick="abrirEditarStay('${h.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="excluirStay('${h.id}')">🗑</button>
       </td>
