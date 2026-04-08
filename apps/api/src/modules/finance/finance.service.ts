@@ -19,13 +19,32 @@ export class FinanceService {
     const day = date ? new Date(date) : new Date();
     const start = new Date(day.getFullYear(), day.getMonth(), day.getDate());
     const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59);
-    const [entries, appointments] = await Promise.all([
+    const [entries, appointments, hotelCheckouts] = await Promise.all([
       this.prisma.cashEntry.findMany({ where: { referenceDate: { gte: start, lte: end } }, include: { registeredBy: { select: { name: true } } } }),
       this.prisma.appointment.findMany({ where: { scheduledAt: { gte: start, lte: end } }, include: { client: { select: { name: true } }, pet: { select: { name: true } }, service: { select: { name: true } }, employee: { select: { name: true } } } }),
+      this.prisma.hotelStay.findMany({ where: { checkOut: { gte: start, lte: end }, status: 'checked_out' }, include: { pet: true, client: true } }),
     ]);
     const income = entries.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount), 0);
     const expense = entries.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount), 0);
-    return { date: day.toISOString().split('T')[0], income, expense, balance: income - expense, entries, appointments };
+    const hotelIncome = hotelCheckouts.reduce((s, h) => s + Number(h.totalAmount || 0), 0);
+    const hotelEntries = hotelCheckouts.map(h => ({
+      id: h.id,
+      type: 'income' as const,
+      amount: h.totalAmount ?? 0,
+      description: `Hotel — ${h.pet?.name || h.client?.name || 'Hospedagem'} (${h.totalDays ?? 1}d)`,
+      category: 'Hotel',
+      paymentMethod: null,
+      referenceDate: h.checkOut,
+      source: 'hotel',
+    }));
+    return {
+      date: day.toISOString().split('T')[0],
+      income: income + hotelIncome,
+      expense,
+      balance: income + hotelIncome - expense,
+      entries: [...entries, ...hotelEntries].sort((a, b) => new Date(b.referenceDate!).getTime() - new Date(a.referenceDate!).getTime()),
+      appointments,
+    };
   }
 
   getCashEntries(filters: any = {}) {

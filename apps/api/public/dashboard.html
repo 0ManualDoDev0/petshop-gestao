@@ -1580,9 +1580,11 @@ async function loadHotelResumo() {
     .filter(h => h.status === 'checked_out' && new Date(h.checkOut) >= startOfMonth)
     .reduce((s, h) => s + Number(h.totalAmount || 0), 0);
 
-  // Diárias abertas = sum of days so far for active stays
+  // Diárias abertas = noites decorridas para estadias ainda ativas
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
   const diasAbertos = ativos.reduce((s, h) => {
-    return s + Math.ceil((Date.now() - new Date(h.checkIn).getTime()) / 86400000);
+    const ci = new Date(h.checkIn); ci.setHours(0, 0, 0, 0);
+    return s + Math.max(1, Math.round((hoje - ci) / 86400000));
   }, 0);
 
   const el = document.getElementById('hotel-total-ativos');
@@ -1700,30 +1702,24 @@ async function salvarCliente() {
 // FINANCEIRO
 // ============================================================
 async function loadFinanceiro() {
-  const today = new Date().toISOString().split('T')[0];
-  const [close, entries] = await Promise.all([
-    get('/finance/daily-close'),
-    get('/finance/cash-entries?startDate=' + today)
-  ]);
-  if (close) {
-    document.getElementById('fin-entradas').textContent = 'R$ ' + (close.income || 0).toFixed(2).replace('.', ',');
-    document.getElementById('fin-saidas').textContent = 'R$ ' + (close.expense || 0).toFixed(2).replace('.', ',');
-    document.getElementById('fin-saldo').textContent = 'R$ ' + ((close.income || 0) - (close.expense || 0)).toFixed(2).replace('.', ',');
-  }
-  if (entries) {
-    const payNames = { pix: 'PIX', cash: 'Dinheiro', credit_card: 'Crédito', debit_card: 'Débito', transfer: 'Transferência' };
-    document.getElementById('lancamentos-table').innerHTML = entries.length === 0
-      ? '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted);">Nenhum lançamento hoje</td></tr>'
-      : entries.map(e => `
-        <tr>
-          <td>${e.description}</td>
-          <td><span style="background:var(--surface2);padding:2px 8px;border-radius:6px;font-size:11px;">${e.category}</span></td>
-          <td style="font-size:12px;color:var(--muted);">${payNames[e.paymentMethod] || e.paymentMethod}</td>
-          <td style="font-weight:600;color:${e.type === 'income' ? 'var(--green)' : 'var(--red)'};">${e.type === 'income' ? '+' : '-'}R$ ${Number(e.amount).toFixed(2).replace('.', ',')}</td>
-          <td><span class="badge badge-${e.type === 'income' ? 'completed' : 'cancelled'}">${e.type === 'income' ? 'Entrada' : 'Saída'}</span></td>
-        </tr>
-      `).join('');
-  }
+  const close = await get('/finance/daily-close');
+  if (!close) return;
+  document.getElementById('fin-entradas').textContent = 'R$ ' + (close.income || 0).toFixed(2).replace('.', ',');
+  document.getElementById('fin-saidas').textContent = 'R$ ' + (close.expense || 0).toFixed(2).replace('.', ',');
+  document.getElementById('fin-saldo').textContent = 'R$ ' + ((close.income || 0) - (close.expense || 0)).toFixed(2).replace('.', ',');
+  const entries = close.entries || [];
+  const payNames = { pix: 'PIX', cash: 'Dinheiro', credit_card: 'Crédito', debit_card: 'Débito', transfer: 'Transferência' };
+  document.getElementById('lancamentos-table').innerHTML = entries.length === 0
+    ? '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted);">Nenhum lançamento hoje</td></tr>'
+    : entries.map(e => `
+      <tr>
+        <td>${e.description}</td>
+        <td><span style="background:var(--surface2);padding:2px 8px;border-radius:6px;font-size:11px;">${e.category}</span></td>
+        <td style="font-size:12px;color:var(--muted);">${e.paymentMethod ? (payNames[e.paymentMethod] || e.paymentMethod) : '—'}</td>
+        <td style="font-weight:600;color:${e.type === 'income' ? 'var(--green)' : 'var(--red)'};">${e.type === 'income' ? '+' : '-'}R$ ${Number(e.amount).toFixed(2).replace('.', ',')}</td>
+        <td><span class="badge badge-${e.type === 'income' ? 'completed' : 'cancelled'}">${e.type === 'income' ? 'Entrada' : 'Saída'}</span></td>
+      </tr>
+    `).join('');
 }
 
 async function salvarLancamento() {
