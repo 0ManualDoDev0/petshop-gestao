@@ -1245,15 +1245,16 @@ function abrirConcluir(id, pet, client, price, clientPackageId) {
 }
 
 async function confirmarConclusao() {
-  const valor = parseFloat(document.getElementById('concluir-valor').value);
-  const pagamento = document.getElementById('concluir-pagamento').value;
+  const rawValor = document.getElementById('concluir-valor').value;
+  const valor = rawValor ? parseFloat(rawValor) : 0;
+  const pagamento = document.getElementById('concluir-pagamento').value || null;
   const r = await patch('/appointments/' + currentAptId + '/complete', { paymentMethod: pagamento, finalPrice: valor });
   if (r.appointment) {
     closeModal('modal-concluir');
     if (currentAptIsPackage) {
       showToast(r.message || '✅ Sessão do pacote utilizada!', 'success');
     } else {
-      showToast(`✅ Atendimento concluído! R$ ${valor.toFixed(2).replace('.', ',')} registrado no caixa.`, 'success');
+      showToast(`✅ Atendimento concluído!${valor > 0 ? ' R$ ' + valor.toFixed(2).replace('.', ',') + ' registrado no caixa.' : ''}`, 'success');
     }
     loadDashboard(); loadAgenda();
   } else showToast('Erro ao concluir atendimento', 'error');

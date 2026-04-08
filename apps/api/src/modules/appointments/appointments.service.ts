@@ -53,7 +53,11 @@ export class AppointmentsService {
   async complete(id: string, data: any) {
     const apt = await this.prisma.appointment.findUnique({ where: { id }, include: { service: true, client: true, pet: true } });
     if (!apt) throw new NotFoundException('Agendamento não encontrado');
-    const finalPrice = data.finalPrice ?? Number(apt.priceCharged);
+    const rawPrice = data.finalPrice !== undefined && !isNaN(Number(data.finalPrice)) ? Number(data.finalPrice) : Number(apt.priceCharged ?? 0);
+    const finalPrice = rawPrice;
+    const paymentMethod = data.paymentMethod || null;
+    const registeredById = data.registeredById || apt.employeeId || apt.clientId;
+    const description = [apt.service?.name, apt.pet?.name, apt.client?.name].filter(Boolean).join(' — ') || 'Atendimento';
 
     // If the appointment is linked to a package, use a session instead of creating a cash entry
     if (apt.clientPackageId) {
@@ -62,7 +66,7 @@ export class AppointmentsService {
         const newUsed = cp.sessionsUsed + 1;
         const newStatus = newUsed >= cp.sessionsTotal ? 'completed' : 'active';
         const [updatedApt] = await this.prisma.$transaction([
-          this.prisma.appointment.update({ where: { id }, data: { status: 'completed', completedAt: new Date(), priceCharged: finalPrice, paymentMethod: 'pix', notes: data.notes } }),
+          this.prisma.appointment.update({ where: { id }, data: { status: 'completed', completedAt: new Date(), priceCharged: finalPrice, paymentMethod, notes: data.notes } }),
           this.prisma.clientPackage.update({ where: { id: apt.clientPackageId }, data: { sessionsUsed: newUsed, status: newStatus } }),
         ]);
         return { appointment: updatedApt, cashEntry: null, message: `Sessão do pacote utilizada! (${newUsed}/${cp.sessionsTotal})` };
@@ -70,8 +74,8 @@ export class AppointmentsService {
     }
 
     const [updatedApt, cashEntry] = await this.prisma.$transaction([
-      this.prisma.appointment.update({ where: { id }, data: { status: 'completed', completedAt: new Date(), priceCharged: finalPrice, paymentMethod: data.paymentMethod, notes: data.notes } }),
-      this.prisma.cashEntry.create({ data: { type: 'income', amount: finalPrice, description: `${apt.service.name} — ${apt.pet.name} (${apt.client.name})`, category: 'Serviços', paymentMethod: data.paymentMethod, appointmentId: id, registeredById: data.registeredById || apt.employeeId, referenceDate: new Date(), isPaid: true } }),
+      this.prisma.appointment.update({ where: { id }, data: { status: 'completed', completedAt: new Date(), priceCharged: finalPrice, paymentMethod, notes: data.notes } }),
+      this.prisma.cashEntry.create({ data: { type: 'income', amount: finalPrice, description, category: 'Serviços', paymentMethod, appointmentId: id, registeredById, referenceDate: new Date(), isPaid: true } }),
     ]);
     return { appointment: updatedApt, cashEntry, message: 'Atendimento concluído e registrado no caixa!' };
   }
