@@ -2269,7 +2269,7 @@ async function confirmarCheckin() {
   const dailyRate = parseFloat(document.getElementById('ci-diaria').value) || 0;
   const checkInStr = document.getElementById('ci-data').value;
   const checkOutStr = document.getElementById('ci-checkout').value;
-  const body: any = {
+  const body = {
     petId: petId || undefined,
     dailyRate,
     checkIn: checkInStr ? new Date(checkInStr).toISOString() : new Date().toISOString(),
