@@ -514,7 +514,10 @@
   <div id="page-financeiro" class="page">
     <div class="page-header">
       <div><div class="page-title">Financeiro</div><div class="page-subtitle">Caixa do dia</div></div>
-      <button class="btn btn-primary" onclick="openModal('modal-lancamento')">+ Lançamento</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-danger" onclick="abrirModalDespesa()">− Nova Despesa</button>
+        <button class="btn btn-primary" onclick="openModal('modal-lancamento')">+ Lançamento</button>
+      </div>
     </div>
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
       <div class="kpi green"><div class="kpi-icon">⬆️</div><div class="kpi-label">Entradas</div><div class="kpi-value" id="fin-entradas">-</div></div>
@@ -559,6 +562,43 @@
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-ghost" onclick="closeModal('modal-concluir')">Cancelar</button>
       <button class="btn btn-success" id="concluir-btn" onclick="confirmarConclusao()">✓ Concluir e Registrar no Caixa</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Nova Despesa -->
+<div class="modal-overlay" id="modal-despesa">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⬇️ Nova Despesa</div>
+      <button class="modal-close" onclick="closeModal('modal-despesa')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descrição</label>
+      <input class="form-input" type="text" id="desp-desc" placeholder="Ex: Aluguel, Shampoo, Conta de luz...">
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Valor (R$)</label>
+        <input class="form-input" type="number" id="desp-valor" min="0" step="0.01" placeholder="0,00">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data</label>
+        <input class="form-input" type="date" id="desp-data">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Categoria</label>
+      <select class="form-input" id="desp-cat">
+        <option value="Infraestrutura">Infraestrutura</option>
+        <option value="Insumos">Insumos</option>
+        <option value="Salários">Salários</option>
+        <option value="Outros">Outros</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-despesa')">Cancelar</button>
+      <button class="btn btn-danger" onclick="salvarDespesa()">✓ Registrar Despesa</button>
     </div>
   </div>
 </div>
@@ -1400,6 +1440,35 @@ async function salvarLancamento() {
   const r = await post('/finance/cash-entries', { type: tipo, amount: valor, description: desc, category: document.getElementById('lanc-cat').value, paymentMethod: document.getElementById('lanc-pag').value, referenceDate: today });
   if (r.id) { closeModal('modal-lancamento'); showToast(`✅ Lançamento registrado!`, 'success'); loadFinanceiro(); loadDashboard(); }
   else showToast('Erro ao registrar lançamento', 'error');
+}
+
+function abrirModalDespesa() {
+  document.getElementById('desp-data').value = new Date().toISOString().split('T')[0];
+  openModal('modal-despesa');
+}
+
+async function salvarDespesa() {
+  const desc = document.getElementById('desp-desc').value.trim();
+  const valor = parseFloat(document.getElementById('desp-valor').value);
+  if (!desc) { showToast('Preencha a descrição!', 'error'); return; }
+  if (!valor || valor <= 0) { showToast('Informe um valor válido!', 'error'); return; }
+  const data = document.getElementById('desp-data').value || new Date().toISOString().split('T')[0];
+  const r = await post('/finance/cash-entries', {
+    type: 'expense',
+    amount: valor,
+    description: desc,
+    category: document.getElementById('desp-cat').value,
+    paymentMethod: 'pix',
+    referenceDate: data,
+  });
+  if (r.id) {
+    closeModal('modal-despesa');
+    document.getElementById('desp-desc').value = '';
+    document.getElementById('desp-valor').value = '';
+    showToast('✅ Despesa registrada!', 'success');
+    loadFinanceiro();
+    loadDashboard();
+  } else showToast('Erro ao registrar despesa', 'error');
 }
 
 // ============================================================
