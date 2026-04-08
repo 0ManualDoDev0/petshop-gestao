@@ -25,16 +25,16 @@ export class AppointmentsService {
     return this.prisma.appointment.create({
       data: {
         clientId: data.clientId,
-        petId: data.petId,
-        serviceId: data.serviceId,
-        employeeId: data.employeeId,
+        petId: data.petId || null,
+        serviceId: data.serviceId || null,
+        employeeId: data.employeeId || null,
         clientPackageId: data.clientPackageId || null,
-        scheduledAt: new Date(data.scheduledAt),
-        type: data.type,
-        priceCharged: data.priceCharged,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : new Date(),
+        type: data.type || 'banho',
+        priceCharged: data.priceCharged || 0,
         discount: data.discount || 0,
         notes: data.notes,
-        createdById: data.createdById || data.employeeId,
+        createdById: data.createdById || data.employeeId || data.clientId,
       },
       include: {
         client: { select: { name: true } },

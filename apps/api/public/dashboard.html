@@ -2077,15 +2077,14 @@ function selecionarCliente(id, name, petsStr) {
 async function salvarAgendamento() {
   if (!selectedClientId) { showToast('Selecione um cliente!', 'error'); return; }
   const serviceEl = document.getElementById('ag-servico');
-  const serviceId = serviceEl.value;
+  const serviceId = serviceEl.value || null;
   const selectedOpt = serviceEl.options[serviceEl.selectedIndex];
-  const price = document.getElementById('ag-valor').value || selectedOpt?.dataset.price;
+  const price = document.getElementById('ag-valor').value || null;
   const type = selectedOpt?.dataset.type || 'banho';
-  const employeeId = document.getElementById('ag-funcionario').value;
+  const employeeId = document.getElementById('ag-funcionario').value || null;
   const dt = document.getElementById('ag-datetime').value;
-  if (!serviceId || !employeeId || !dt) { showToast('Preencha todos os campos!', 'error'); return; }
 
-  // Pet: opcional — usa select se visível, senão selectedPetId
+  // Pet: opcional
   const petEl = document.getElementById('ag-pet');
   const petId = (petEl?.style.display !== 'none' && petEl?.value) ? petEl.value : (selectedPetId || null);
 
@@ -2093,9 +2092,13 @@ async function salvarAgendamento() {
   const clientPackageId = document.getElementById('ag-pacote')?.value || null;
 
   const r = await post('/appointments', {
-    clientId: selectedClientId, petId, serviceId, employeeId,
-    scheduledAt: new Date(dt).toISOString(), type,
-    priceCharged: parseFloat(price),
+    clientId: selectedClientId,
+    petId: petId || undefined,
+    serviceId: serviceId || undefined,
+    employeeId: employeeId || undefined,
+    scheduledAt: dt ? new Date(dt).toISOString() : undefined,
+    type,
+    priceCharged: price ? parseFloat(price) : 0,
     clientPackageId: clientPackageId || undefined,
   });
   if (r.id) {
