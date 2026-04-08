@@ -1992,12 +1992,16 @@ function togglePacoteField(checked) {
   } else {
     pkgGroup.style.display = 'none';
   }
+  // Quando ativa o pacote, limpa o valor para entrada livre
+  if (checked) document.getElementById('ag-valor').value = '';
 }
 
 function onServicoChange(sel) {
   const opt = sel.options[sel.selectedIndex];
   const price = opt?.dataset.price;
-  document.getElementById('ag-valor').value = price ? Number(price).toFixed(2) : '';
+  // Só preenche o valor automaticamente se NÃO for pacote
+  const isPacote = document.getElementById('ag-is-pacote')?.checked;
+  if (!isPacote) document.getElementById('ag-valor').value = price ? Number(price).toFixed(2) : '';
 }
 
 async function loadFuncionariosForm() {
