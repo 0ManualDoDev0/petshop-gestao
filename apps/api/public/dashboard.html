@@ -648,6 +648,29 @@
   </div>
 </div>
 
+<!-- MODAL: Editar Agendamento -->
+<div class="modal-overlay" id="modal-editar-agendamento">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Editar Agendamento</div>
+      <button class="modal-close" onclick="closeModal('modal-editar-agendamento')">×</button>
+    </div>
+    <div id="edit-apt-info" style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);"></div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Serviço</label><select class="form-input" id="edit-apt-servico"><option value="">— sem serviço —</option></select></div>
+      <div class="form-group"><label class="form-label">Valor (R$)</label><input class="form-input" type="number" id="edit-apt-valor" min="0" step="0.01" placeholder="0,00"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Data e Hora</label><input class="form-input" type="datetime-local" id="edit-apt-datetime"></div>
+      <div class="form-group"><label class="form-label">Funcionário</label><select class="form-input" id="edit-apt-funcionario"><option value="">— sem funcionário —</option></select></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-editar-agendamento')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoAgendamento()">✓ Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Agendar -->
 <div class="modal-overlay" id="modal-agendar">
   <div class="modal">
@@ -1119,7 +1142,8 @@ async function loadAgenda(date) {
           ${a.status === 'scheduled' ? `<button class="btn btn-warning btn-sm" onclick="iniciarAtendimento('${a.id}')">▶ Iniciar</button>` : ''}
           ${a.status === 'in_progress' ? `<button class="btn btn-success btn-sm" onclick="abrirConcluir('${a.id}','${(a.pet?.name||'').replace(/'/g,'')}','${(a.client?.name||'').replace(/'/g,'')}',${a.priceCharged},'${a.clientPackageId||''}')">✓ Concluir</button>` : ''}
           ${a.status === 'completed' ? `<span style="font-size:11px;color:var(--green);">✓ ${(a.paymentMethod||'').toUpperCase()}</span>` : ''}
-          ${a.status !== 'completed' && a.status !== 'in_progress' ? `<button class="btn btn-danger btn-sm" onclick="excluirAgendamento('${a.id}')">🗑 Excluir</button>` : `<button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="excluirAgendamento('${a.id}')">🗑</button>`}
+          <button class="btn btn-ghost btn-sm" style="margin-left:4px;" onclick="abrirEditarAgendamento('${a.id}','${(a.pet?.name||'').replace(/'/g,'')}','${(a.client?.name||'').replace(/'/g,'')}','${a.serviceId||''}','${a.employeeId||''}','${a.scheduledAt}',${a.priceCharged})">✏️</button>
+          ${a.status !== 'completed' && a.status !== 'in_progress' ? `<button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="excluirAgendamento('${a.id}')">🗑 Excluir</button>` : `<button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="excluirAgendamento('${a.id}')">🗑</button>`}
         </td>
       </tr>
     `).join('');
@@ -1142,6 +1166,60 @@ async function excluirAgendamento(id) {
 }
 
 let currentAptIsPackage = false;
+let editAptId = null;
+
+async function abrirEditarAgendamento(id, pet, client, serviceId, employeeId, scheduledAt, price) {
+  editAptId = id;
+  document.getElementById('edit-apt-info').textContent = `${pet || '—'} · ${client || '—'}`;
+  document.getElementById('edit-apt-valor').value = price ? Number(price).toFixed(2) : '';
+
+  // Data/hora no formato datetime-local
+  if (scheduledAt) {
+    const d = new Date(scheduledAt);
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    document.getElementById('edit-apt-datetime').value = local;
+  } else {
+    document.getElementById('edit-apt-datetime').value = '';
+  }
+
+  // Popular serviços
+  const servicos = await get('/services');
+  const svcSel = document.getElementById('edit-apt-servico');
+  svcSel.innerHTML = '<option value="">— sem serviço —</option>' +
+    (servicos || []).map(s => `<option value="${s.id}" ${s.id === serviceId ? 'selected' : ''}>${s.name}</option>`).join('');
+
+  // Popular funcionários
+  const users = await get('/users');
+  const empSel = document.getElementById('edit-apt-funcionario');
+  empSel.innerHTML = '<option value="">— sem funcionário —</option>' +
+    (users || []).filter(u => u.isActive).map(u => `<option value="${u.id}" ${u.id === employeeId ? 'selected' : ''}>${u.name}</option>`).join('');
+
+  openModal('modal-editar-agendamento');
+}
+
+async function salvarEdicaoAgendamento() {
+  if (!editAptId) return;
+  const serviceId = document.getElementById('edit-apt-servico').value || null;
+  const employeeId = document.getElementById('edit-apt-funcionario').value || null;
+  const valor = document.getElementById('edit-apt-valor').value;
+  const dt = document.getElementById('edit-apt-datetime').value;
+
+  const body = {};
+  if (serviceId !== null) body.serviceId = serviceId;
+  if (employeeId !== null) body.employeeId = employeeId;
+  if (valor) body.priceCharged = parseFloat(valor);
+  if (dt) body.scheduledAt = new Date(dt).toISOString();
+
+  const r = await patch('/appointments/' + editAptId, body);
+  if (r.id || r.scheduledAt) {
+    closeModal('modal-editar-agendamento');
+    showToast('✅ Agendamento atualizado!', 'success');
+    loadAgenda();
+    loadDashboard();
+  } else {
+    showToast('Erro ao atualizar: ' + (r.message || ''), 'error');
+  }
+}
 
 function abrirConcluir(id, pet, client, price, clientPackageId) {
   currentAptId = id;

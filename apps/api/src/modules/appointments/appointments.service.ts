@@ -80,6 +80,16 @@ export class AppointmentsService {
     return this.prisma.appointment.update({ where: { id }, data: { status: 'cancelled', cancelledReason: reason } });
   }
 
+  update(id: string, data: any) {
+    const allowed: any = {};
+    if (data.serviceId !== undefined) allowed.serviceId = data.serviceId || null;
+    if (data.employeeId !== undefined) allowed.employeeId = data.employeeId || null;
+    if (data.priceCharged !== undefined) allowed.priceCharged = data.priceCharged;
+    if (data.scheduledAt !== undefined) allowed.scheduledAt = new Date(data.scheduledAt);
+    if (data.notes !== undefined) allowed.notes = data.notes;
+    return this.prisma.appointment.update({ where: { id }, data: allowed });
+  }
+
   async remove(id: string) {
     const apt = await this.prisma.appointment.findUnique({ where: { id } });
     if (!apt) throw new NotFoundException('Agendamento não encontrado');

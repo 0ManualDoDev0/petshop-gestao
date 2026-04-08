@@ -12,6 +12,7 @@ export class AppointmentsController {
   @Get() findAll(@Query() query: any) { return this.service.findAll(query); }
   @Get('today') getToday() { return this.service.getToday(); }
   @Post() create(@Body() body: any, @Request() req: any) { return this.service.create({ ...body, createdById: req.user?.id }); }
+  @Patch(':id') update(@Param('id') id: string, @Body() body: any) { return this.service.update(id, body); }
   @Patch(':id/start') start(@Param('id') id: string) { return this.service.start(id); }
   @Patch(':id/complete') complete(@Param('id') id: string, @Body() body: any, @Request() req: any) { return this.service.complete(id, { ...body, registeredById: req.user?.id }); }
   @Patch(':id/cancel') cancel(@Param('id') id: string, @Body() body: { reason: string }) { return this.service.cancel(id, body.reason); }
