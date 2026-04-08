@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { HotelService } from './hotel.service';
@@ -13,4 +13,5 @@ export class HotelController {
   @Post('check-in') checkIn(@Body() body: any) { return this.service.checkIn(body); }
   @Patch(':id/check-out') checkOut(@Param('id') id: string) { return this.service.checkOut(id); }
   @Patch(':id') update(@Param('id') id: string, @Body() body: any) { return this.service.update(id, body); }
+  @Delete(':id') remove(@Param('id') id: string) { return this.service.remove(id); }
 }

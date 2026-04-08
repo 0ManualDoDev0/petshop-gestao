@@ -842,13 +842,25 @@
       <div class="modal-title">✏️ Editar Estadia</div>
       <button class="modal-close" onclick="closeModal('modal-editar-stay')">×</button>
     </div>
-    <div class="form-group">
-      <label class="form-label">Diária (R$)</label>
-      <input type="number" class="form-input" id="edit-stay-diaria" step="0.01" min="0" placeholder="0,00">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Nome do Pet</label>
+        <input type="text" class="form-input" id="edit-stay-petname" placeholder="Nome do pet">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nome do Cliente</label>
+        <input type="text" class="form-input" id="edit-stay-clientname" placeholder="Nome do cliente">
+      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Data Check-in</label>
-      <input type="datetime-local" class="form-input" id="edit-stay-checkin">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Data/Hora Check-in</label>
+        <input type="datetime-local" class="form-input" id="edit-stay-checkin">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Data/Hora Check-out <span style="font-size:11px;color:var(--muted);">(opcional)</span></label>
+        <input type="datetime-local" class="form-input" id="edit-stay-checkout">
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">Obs. Alimentação</label>
@@ -1467,6 +1479,7 @@ async function loadHotel() {
     el.innerHTML = '<div class="empty"><div class="empty-icon">🏨</div><div>Nenhum pet hospedado</div></div>';
     return;
   }
+  stays.forEach(h => { stayCache[h.id] = h; });
   el.innerHTML = stays.map(h => `
     <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px;display:flex;align-items:center;gap:16px;">
       <div style="font-size:32px;">🐕</div>
@@ -1478,7 +1491,7 @@ async function loadHotel() {
       <div style="text-align:right;">
         <div style="font-size:18px;font-weight:600;color:var(--green);">R$ ${Number(h.dailyRate).toFixed(2).replace('.', ',')}/dia</div>
         <button class="btn btn-warning btn-sm" style="margin-top:8px;" onclick="fazerCheckout('${h.id}')">Check-out</button>
-        <button class="btn btn-ghost btn-sm" style="margin-top:8px;margin-left:6px;" onclick="abrirEditarStay('${h.id}', ${h.dailyRate}, '${h.checkIn}', '${h.feedingNotes||''}', '${h.medications||''}')">✏️</button>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px;margin-left:6px;" onclick="abrirEditarStay('${h.id}')">✏️</button>
       </div>
     </div>
   `).join('');
@@ -1490,29 +1503,49 @@ async function fazerCheckout(id) {
 }
 
 let editStayId = null;
+let stayCache = {};
 
-function abrirEditarStay(id, dailyRate, checkIn, feedingNotes, medications) {
+function abrirEditarStay(id) {
+  const h = stayCache[id];
+  if (!h) return;
   editStayId = id;
-  document.getElementById('edit-stay-diaria').value = Number(dailyRate).toFixed(2);
-  const d = new Date(checkIn);
-  document.getElementById('edit-stay-checkin').value = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  document.getElementById('edit-stay-alimentacao').value = feedingNotes;
-  document.getElementById('edit-stay-medicacoes').value = medications;
+  document.getElementById('edit-stay-petname').value = h.pet?.name || '';
+  document.getElementById('edit-stay-clientname').value = h.pet?.client?.name || '';
+  const toLocal = dt => { const d = new Date(dt); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+  document.getElementById('edit-stay-checkin').value = h.checkIn ? toLocal(h.checkIn) : '';
+  document.getElementById('edit-stay-checkout').value = h.checkOut ? toLocal(h.checkOut) : '';
+  document.getElementById('edit-stay-alimentacao').value = h.feedingNotes || '';
+  document.getElementById('edit-stay-medicacoes').value = h.medications || '';
   openModal('modal-editar-stay');
 }
 
 async function salvarEdicaoStay() {
   if (!editStayId) return;
-  const dailyRate = parseFloat(document.getElementById('edit-stay-diaria').value) || 0;
+  const h = stayCache[editStayId] || {};
   const checkInVal = document.getElementById('edit-stay-checkin').value;
-  const r = await patch('/hotel/' + editStayId, {
-    dailyRate,
+  const checkOutVal = document.getElementById('edit-stay-checkout').value;
+  const petName = document.getElementById('edit-stay-petname').value.trim();
+  const clientName = document.getElementById('edit-stay-clientname').value.trim();
+  const body = {
     checkIn: checkInVal ? new Date(checkInVal).toISOString() : undefined,
+    checkOut: checkOutVal ? new Date(checkOutVal).toISOString() : null,
     feedingNotes: document.getElementById('edit-stay-alimentacao').value || null,
     medications: document.getElementById('edit-stay-medicacoes').value || null,
-  });
-  if (r.id) { closeModal('modal-editar-stay'); showToast('✅ Estadia atualizada!', 'success'); loadHotel(); }
+  };
+  if (h.pet?.id) {
+    if (petName && petName !== h.pet?.name) body.petName = petName;
+    if (clientName && clientName !== h.pet?.client?.name) body.clientName = clientName;
+  }
+  const r = await patch('/hotel/' + editStayId, body);
+  if (r.id) { closeModal('modal-editar-stay'); showToast('✅ Estadia atualizada!', 'success'); loadHotel(); loadHotelResumo(); }
   else showToast('Erro ao atualizar: ' + (r.message || ''), 'error');
+}
+
+async function excluirStay(id) {
+  if (!confirm('Tem certeza que deseja excluir este registro de hospedagem?')) return;
+  const r = await del('/hotel/' + id);
+  if (r !== null) { showToast('Registro excluído!', 'success'); loadHotel(); loadHotelResumo(); loadDashboard(); }
+  else showToast('Erro ao excluir registro', 'error');
 }
 
 async function loadHotelResumo() {
@@ -1546,6 +1579,7 @@ async function loadHotelResumo() {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--muted);">Nenhum histórico</td></tr>';
     return;
   }
+  history.forEach(h => { stayCache[h.id] = h; });
   tbody.innerHTML = history.map(h => {
     const checkIn = new Date(h.checkIn).toLocaleDateString('pt-BR');
     const checkOut = h.checkOut ? new Date(h.checkOut).toLocaleDateString('pt-BR') : '—';
@@ -1553,8 +1587,6 @@ async function loadHotelResumo() {
     const statusBadge = h.status === 'active'
       ? `<span class="badge badge-in_progress">Hospedado</span>`
       : `<span class="badge badge-completed">Check-out</span>`;
-    const feedingEsc = (h.feedingNotes || '').replace(/'/g, '').replace(/\\/g, '');
-    const medsEsc = (h.medications || '').replace(/'/g, '').replace(/\\/g, '');
     return `<tr>
       <td style="font-weight:500;">${h.pet?.name || '—'}</td>
       <td style="font-size:13px;">${h.pet?.client?.name || '—'}</td>
@@ -1563,7 +1595,10 @@ async function loadHotelResumo() {
       <td style="font-size:13px;">${h.totalDays || '—'}</td>
       <td style="font-weight:600;color:var(--green);">${total}</td>
       <td>${statusBadge}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="abrirEditarStay('${h.id}',${h.dailyRate},'${h.checkIn}','${feedingEsc}','${medsEsc}')">✏️</button></td>
+      <td style="display:flex;gap:4px;">
+        <button class="btn btn-ghost btn-sm" onclick="abrirEditarStay('${h.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="excluirStay('${h.id}')">🗑</button>
+      </td>
     </tr>`;
   }).join('');
 }

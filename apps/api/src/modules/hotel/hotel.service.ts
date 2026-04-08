@@ -12,12 +12,17 @@ export class HotelService {
   }
   update(id: string, data: any) {
     const allowed: any = {};
-    if (data.dailyRate !== undefined) allowed.dailyRate = data.dailyRate;
     if (data.checkIn !== undefined) allowed.checkIn = new Date(data.checkIn);
+    if (data.checkOut !== undefined) allowed.checkOut = data.checkOut ? new Date(data.checkOut) : null;
     if (data.feedingNotes !== undefined) allowed.feedingNotes = data.feedingNotes;
     if (data.medications !== undefined) allowed.medications = data.medications;
+    const petUpdate: any = {};
+    if (data.petName !== undefined) petUpdate.name = data.petName;
+    if (data.clientName !== undefined) petUpdate.client = { update: { name: data.clientName } };
+    if (Object.keys(petUpdate).length > 0) allowed.pet = { update: petUpdate };
     return this.prisma.hotelStay.update({ where: { id }, data: allowed, include: { pet: { include: { client: true } } } });
   }
+  remove(id: string) { return this.prisma.hotelStay.delete({ where: { id } }); }
   getHistory() {
     return this.prisma.hotelStay.findMany({
       orderBy: { checkIn: 'desc' },
