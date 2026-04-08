@@ -16,40 +16,52 @@ export class ReportsService {
   async getRevenue(startDate: string, endDate: string) {
     const { start, end } = this.rangeOf(startDate, endDate);
 
-    const entries = await this.prisma.cashEntry.findMany({
-      where: { referenceDate: { gte: start, lte: end } },
-      orderBy: { referenceDate: 'asc' },
-    });
+    const [entries, hotelStays] = await Promise.all([
+      this.prisma.cashEntry.findMany({ where: { referenceDate: { gte: start, lte: end } }, orderBy: { referenceDate: 'asc' } }),
+      this.prisma.hotelStay.findMany({ where: { checkOut: { gte: start, lte: end }, status: 'checked_out' } }),
+    ]);
 
     const income = entries.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount), 0);
     const expense = entries.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount), 0);
+    const hotelIncome = hotelStays.reduce((s, h) => s + Number(h.totalAmount || 0), 0);
+    const totalIncome = income + hotelIncome;
 
-    // Group by day
+    // Group by day (cash + hotel)
     const byDayMap: Record<string, { income: number; expense: number }> = {};
     for (const e of entries) {
       const day = new Date(e.referenceDate).toISOString().split('T')[0];
       if (!byDayMap[day]) byDayMap[day] = { income: 0, expense: 0 };
       byDayMap[day][e.type as 'income' | 'expense'] += Number(e.amount);
     }
+    for (const h of hotelStays) {
+      const day = new Date(h.checkOut!).toISOString().split('T')[0];
+      if (!byDayMap[day]) byDayMap[day] = { income: 0, expense: 0 };
+      byDayMap[day].income += Number(h.totalAmount || 0);
+    }
     const byDay = Object.entries(byDayMap)
       .map(([date, v]) => ({ date, ...v, profit: v.income - v.expense }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    // Group by category
+    // Group by category (cash + hotel)
     const byCatMap: Record<string, { income: number; expense: number }> = {};
     for (const e of entries) {
       if (!byCatMap[e.category]) byCatMap[e.category] = { income: 0, expense: 0 };
       byCatMap[e.category][e.type as 'income' | 'expense'] += Number(e.amount);
     }
+    if (hotelIncome > 0) {
+      if (!byCatMap['Hotel']) byCatMap['Hotel'] = { income: 0, expense: 0 };
+      byCatMap['Hotel'].income += hotelIncome;
+    }
     const byCategory = Object.entries(byCatMap)
       .map(([category, v]) => ({ category, ...v }))
       .sort((a, b) => b.income - a.income);
 
-    // Group by payment method (income only)
+    // Group by payment method (income only; hotel shown separately)
     const byPayMap: Record<string, number> = {};
     for (const e of entries.filter(e => e.type === 'income')) {
       byPayMap[e.paymentMethod] = (byPayMap[e.paymentMethod] || 0) + Number(e.amount);
     }
+    if (hotelIncome > 0) byPayMap['hotel'] = (byPayMap['hotel'] || 0) + hotelIncome;
     const byPaymentMethod = Object.entries(byPayMap)
       .map(([method, amount]) => ({ method, amount }))
       .sort((a, b) => b.amount - a.amount);
@@ -57,11 +69,11 @@ export class ReportsService {
     return {
       period: { start: startDate, end: endDate },
       totals: {
-        income,
+        income: totalIncome,
         expense,
-        profit: income - expense,
-        profitMargin: income > 0 ? +((income - expense) / income * 100).toFixed(1) : 0,
-        transactions: entries.length,
+        profit: totalIncome - expense,
+        profitMargin: totalIncome > 0 ? +((totalIncome - expense) / totalIncome * 100).toFixed(1) : 0,
+        transactions: entries.length + hotelStays.length,
       },
       byDay,
       byCategory,

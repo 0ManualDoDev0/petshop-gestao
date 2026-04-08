@@ -1765,7 +1765,7 @@ async function salvarDespesa() {
 // ============================================================
 // RELATÓRIOS
 // ============================================================
-const PAY_LABELS = { pix:'PIX', cash:'Dinheiro', credit_card:'Crédito', debit_card:'Débito', transfer:'Transferência' };
+const PAY_LABELS = { pix:'PIX', cash:'Dinheiro', credit_card:'Crédito', debit_card:'Débito', transfer:'Transferência', hotel:'Hotel' };
 const STATUS_LABELS = { active:'Ativo', expired:'Expirado', completed:'Concluído', cancelled:'Cancelado' };
 const STATUS_COLORS = { active:'var(--accent)', expired:'var(--red)', completed:'var(--green)', cancelled:'var(--muted)' };
 
@@ -2345,11 +2345,15 @@ async function confirmarCheckin() {
     medications: document.getElementById('ci-medicacoes').value || null,
   };
   if (checkOutStr) {
-    const dias = Math.max(1, Math.ceil((new Date(checkOutStr) - new Date(checkInStr || Date.now())) / 86400000));
-    body.checkOut = new Date(checkOutStr).toISOString();
-    body.status = 'checked_out';
+    const checkOutDate = new Date(checkOutStr);
+    const dias = Math.max(1, Math.ceil((checkOutDate - new Date(checkInStr || Date.now())) / 86400000));
+    body.checkOut = checkOutDate.toISOString();
     body.totalDays = dias;
     body.totalAmount = dias * dailyRate;
+    // Só marca como checked_out se o checkout já passou (backdating); checkout futuro = ainda hospedado
+    if (checkOutDate <= new Date()) {
+      body.status = 'checked_out';
+    }
   }
   const r = await post('/hotel/check-in', body);
   if (r.id) {

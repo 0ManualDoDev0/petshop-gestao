@@ -3,7 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class HotelService {
   constructor(private prisma: PrismaService) {}
-  getActive() { return this.prisma.hotelStay.findMany({ where: { status: 'active' }, include: { pet: { include: { client: true } }, client: true } }); }
+  getActive() {
+    const now = new Date();
+    return this.prisma.hotelStay.findMany({
+      where: { OR: [{ status: 'active' }, { checkOut: { gt: now } }] },
+      include: { pet: { include: { client: true } }, client: true },
+      orderBy: { checkIn: 'asc' },
+    });
+  }
   checkIn(data: any) { return this.prisma.hotelStay.create({ data }); }
   async checkOut(id: string) {
     const stay = await this.prisma.hotelStay.findUnique({ where: { id } });

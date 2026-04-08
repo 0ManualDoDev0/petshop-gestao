@@ -13,7 +13,7 @@ export class DashboardService {
     const [todayApts, monthEntries, hotelStays, hotelToday, hotelMonth] = await Promise.all([
       this.prisma.appointment.findMany({ where: { scheduledAt: { gte: startOfDay, lte: endOfDay } }, include: { client: { select: { name: true } }, pet: { select: { name: true, breed: true } }, service: { select: { name: true, type: true } }, employee: { select: { name: true } } }, orderBy: { scheduledAt: 'asc' } }),
       this.prisma.cashEntry.findMany({ where: { referenceDate: { gte: startOfMonth } } }),
-      this.prisma.hotelStay.findMany({ where: { status: 'active' }, include: { pet: { include: { client: { select: { name: true, phone: true } } } }, client: { select: { name: true, phone: true } } } }),
+      this.prisma.hotelStay.findMany({ where: { OR: [{ status: 'active' }, { checkOut: { gt: today } }] }, include: { pet: { include: { client: { select: { name: true, phone: true } } } }, client: { select: { name: true, phone: true } } } }),
       this.prisma.hotelStay.findMany({ where: { checkOut: { gte: startOfDay, lte: endOfDay }, status: 'checked_out' } }),
       this.prisma.hotelStay.findMany({ where: { checkOut: { gte: startOfMonth }, status: 'checked_out' } }),
     ]);
