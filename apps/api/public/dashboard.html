@@ -1569,26 +1569,29 @@ async function togglePagamentoStay(id) {
 }
 
 async function loadHotelResumo() {
-  const history = await get('/hotel/history');
+  const [history, ativos] = await Promise.all([
+    get('/hotel/history'),
+    get('/hotel/active'),
+  ]);
   if (!history) return;
 
-  // KPIs
-  const ativos = history.filter(h => h.status === 'active');
+  // KPIs — usa getActive que já tem a lógica correta (status=active OU checkout futuro)
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const mesFaturamento = history
-    .filter(h => h.status === 'checked_out' && new Date(h.checkOut) >= startOfMonth)
+    .filter(h => h.status === 'checked_out' && h.checkOut && new Date(h.checkOut) >= startOfMonth)
     .reduce((s, h) => s + Number(h.totalAmount || 0), 0);
 
-  // Diárias abertas = noites decorridas para estadias ainda ativas
+  // Diárias abertas = noites decorridas para estadias ainda hospedadas
   const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const diasAbertos = ativos.reduce((s, h) => {
+  const ativosArr = ativos || [];
+  const diasAbertos = ativosArr.reduce((s, h) => {
     const ci = new Date(h.checkIn); ci.setHours(0, 0, 0, 0);
     return s + Math.max(1, Math.round((hoje - ci) / 86400000));
   }, 0);
 
   const el = document.getElementById('hotel-total-ativos');
-  if (el) el.textContent = ativos.length;
+  if (el) el.textContent = ativosArr.length;
   const el2 = document.getElementById('hotel-diarias-abertas');
   if (el2) el2.textContent = diasAbertos;
   const el3 = document.getElementById('hotel-mes-valor');

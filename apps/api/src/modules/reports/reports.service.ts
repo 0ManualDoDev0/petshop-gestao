@@ -18,12 +18,18 @@ export class ReportsService {
 
     const [entries, hotelStays] = await Promise.all([
       this.prisma.cashEntry.findMany({ where: { referenceDate: { gte: start, lte: end } }, orderBy: { referenceDate: 'asc' } }),
-      this.prisma.hotelStay.findMany({ where: { checkOut: { gte: start, lte: end }, status: 'checked_out' } }),
+      // Todas as estadias que fizeram check-in no período (independente de status ou pagamento)
+      this.prisma.hotelStay.findMany({ where: { checkIn: { gte: start, lte: end } } }),
     ]);
 
     const income = entries.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount), 0);
     const expense = entries.filter(e => e.type === 'expense').reduce((s, e) => s + Number(e.amount), 0);
-    const hotelIncome = hotelStays.reduce((s, h) => s + Number(h.totalAmount || 0), 0);
+    // Para estadias com totalAmount calculado; para ativas sem checkout usa dailyRate * totalDays estimado
+    const hotelIncome = hotelStays.reduce((s, h) => {
+      if (h.totalAmount) return s + Number(h.totalAmount);
+      const days = h.totalDays || Math.max(1, Math.ceil((Date.now() - new Date(h.checkIn).getTime()) / 86400000));
+      return s + Number(h.dailyRate) * days;
+    }, 0);
     const totalIncome = income + hotelIncome;
 
     // Group by day (cash + hotel)
@@ -34,7 +40,7 @@ export class ReportsService {
       byDayMap[day][e.type as 'income' | 'expense'] += Number(e.amount);
     }
     for (const h of hotelStays) {
-      const day = new Date(h.checkOut!).toISOString().split('T')[0];
+      const day = new Date(h.checkIn).toISOString().split('T')[0];
       if (!byDayMap[day]) byDayMap[day] = { income: 0, expense: 0 };
       byDayMap[day].income += Number(h.totalAmount || 0);
     }
