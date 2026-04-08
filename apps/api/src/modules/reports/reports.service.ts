@@ -84,6 +84,7 @@ export class ReportsService {
     }> = {};
 
     for (const apt of appointments) {
+      if (!apt.employee) continue;
       const { id, name } = apt.employee;
       if (!map[id]) map[id] = { employee: { id, name }, total: 0, completed: 0, cancelled: 0, inProgress: 0, revenue: 0 };
       map[id].total++;
