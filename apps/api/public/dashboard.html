@@ -1210,8 +1210,11 @@ function renderClientes(clientes) {
     ? '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted);">Nenhum cliente</td></tr>'
     : clientes.map(c => `
       <tr>
-        <td style="font-weight:500;">${c.name}</td>
-        <td>${c.phone}</td>
+        <td style="font-weight:500;">
+          ${c.name}
+          ${(!c.phone || !c.email) ? `<span title="Cadastro incompleto" style="cursor:default;margin-left:4px;">⚠️</span>` : ''}
+        </td>
+        <td>${c.phone || '<span style="color:var(--muted);font-size:12px;">—</span>'}</td>
         <td>
           ${(c.pets || []).map(p => `<span class="svc-badge svc-banho" style="margin-right:4px;">${p.name}</span>`).join('')}
         </td>
@@ -1246,12 +1249,11 @@ function abrirEditarCliente(id, nome, tel, email) {
 
 async function salvarEdicaoCliente() {
   const nome = document.getElementById('edit-cli-nome').value;
-  const tel = document.getElementById('edit-cli-tel').value;
-  if (!nome || !tel) { showToast('Preencha nome e telefone!', 'error'); return; }
+  if (!nome) { showToast('Preencha o nome do cliente!', 'error'); return; }
   const r = await fetch(API + '/clients/' + editClienteId, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
-    body: JSON.stringify({ name: nome, phone: tel, email: document.getElementById('edit-cli-email').value })
+    body: JSON.stringify({ name: nome, phone: document.getElementById('edit-cli-tel').value, email: document.getElementById('edit-cli-email').value })
   });
   const data = await r.json();
   if (data.id) { closeModal('modal-editar-cliente'); showToast('✅ Cliente atualizado!', 'success'); loadClientes(); }
@@ -1260,9 +1262,8 @@ async function salvarEdicaoCliente() {
 
 async function salvarCliente() {
   const nome = document.getElementById('cli-nome').value;
-  const tel = document.getElementById('cli-tel').value;
-  if (!nome || !tel) { showToast('Preencha nome e telefone!', 'error'); return; }
-  const r = await post('/clients', { name: nome, phone: tel, email: document.getElementById('cli-email').value });
+  if (!nome) { showToast('Preencha o nome do cliente!', 'error'); return; }
+  const r = await post('/clients', { name: nome, phone: document.getElementById('cli-tel').value, email: document.getElementById('cli-email').value });
   if (r.id) { closeModal('modal-cliente'); showToast('✅ Cliente cadastrado!', 'success'); loadClientes(); }
   else showToast('Erro ao cadastrar cliente', 'error');
 }
