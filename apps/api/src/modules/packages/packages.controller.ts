@@ -49,6 +49,24 @@ export class PackagesController {
     return this.service.markAsPaid(id, body.paymentMethod || 'pix', body.registeredById || req.user?.id);
   }
 
+  // ── Editar pacote vendido ────────────────────────────────────
+  @Patch('client-package/:id')
+  updateClientPackage(@Param('id') id: string, @Body() body: any) {
+    return this.service.updateClientPackage(id, body);
+  }
+
+  // ── Estornar pagamento ───────────────────────────────────────
+  @Post('client-package/:id/unmark-paid')
+  unmarkPaid(@Param('id') id: string) {
+    return this.service.unmarkPaid(id);
+  }
+
+  // ── Excluir pacote vendido ───────────────────────────────────
+  @Delete('client-package/:id')
+  deleteClientPackage(@Param('id') id: string) {
+    return this.service.deleteClientPackage(id);
+  }
+
   // ── Usar sessão ─────────────────────────────────────────────
   @Post('client-package/:id/use-session')
   useSession(@Param('id') id: string, @Body() body: any) {

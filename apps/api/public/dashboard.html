@@ -1046,6 +1046,42 @@
   </div>
 </div>
 
+<!-- MODAL: Editar Pacote Vendido -->
+<div class="modal-overlay" id="modal-editar-cp">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">✏️ Editar Pacote Vendido</div>
+      <button class="modal-close" onclick="closeModal('modal-editar-cp')">×</button>
+    </div>
+    <div id="editar-cp-info" style="background:var(--surface2);border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);"></div>
+    <div class="form-group">
+      <label class="form-label">Valor Pago (R$)</label>
+      <input type="number" class="form-input" id="editar-cp-valor" step="0.01" min="0">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data de Expiração</label>
+      <input type="date" class="form-input" id="editar-cp-expira">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status</label>
+      <select class="form-input" id="editar-cp-status">
+        <option value="active">Ativo</option>
+        <option value="completed">Concluído</option>
+        <option value="expired">Expirado</option>
+        <option value="cancelled">Cancelado</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Observações</label>
+      <textarea class="form-input" id="editar-cp-obs" rows="2" style="resize:vertical;"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-editar-cp')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEdicaoClientePacote()">💾 Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -2210,11 +2246,13 @@ function renderClientPackages(list) {
         <td style="font-size:12px;color:${expired?'var(--red)':'var(--muted)'};">${expDate.toLocaleDateString('pt-BR')}</td>
         <td style="font-weight:600;color:var(--green);">R$ ${Number(cp.amountPaid).toFixed(2).replace('.', ',')}</td>
         <td><span class="badge ${statusBadge[cp.status] || 'badge-scheduled'}">${statusLabels[cp.status] || cp.status}</span></td>
-        <td style="display:flex;gap:4px;flex-wrap:wrap;">
+        <td style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
           ${cp.isPaid
-            ? `<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Pago</span>`
-            : `<button class="btn btn-success btn-sm" onclick="abrirMarcarPago('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${cp.amountPaid})">💰 Recebido</button>`}
-          ${cp.status === 'active' && used < total ? `<button class="btn btn-warning btn-sm" onclick="abrirUsarSessao('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${used},${total})">✂️ Usar Sessão</button>` : ''}
+            ? `<button class="btn btn-sm" style="background:var(--green);color:#fff;font-size:11px;padding:3px 8px;" title="Clique para estornar" onclick="desmarcarPago('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}')">✓ Recebido</button>`
+            : `<button class="btn btn-sm" style="background:#b45309;color:#fff;font-size:11px;padding:3px 8px;" title="Clique para registrar pagamento" onclick="abrirMarcarPago('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${cp.amountPaid})">⏳ Pendente</button>`}
+          ${cp.status === 'active' && used < total ? `<button class="btn btn-warning btn-sm" onclick="abrirUsarSessao('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${used},${total})">✂️ Sessão</button>` : ''}
+          <button class="btn btn-ghost btn-sm" style="padding:3px 7px;" title="Editar" onclick="abrirEditarClientePacote('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${cp.amountPaid},'${new Date(cp.expiresAt).toISOString().split('T')[0]}','${cp.status}','${(cp.notes||'').replace(/'/g,'').replace(/\n/g,' ')}')">✏️</button>
+          <button class="btn btn-sm" style="background:var(--red);color:#fff;padding:3px 7px;" title="Excluir" onclick="excluirClientePacote('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}')">🗑</button>
         </td>
       </tr>
     `;
@@ -2369,6 +2407,52 @@ async function confirmarMarcarPago() {
     loadPacotes();
     loadDashboard();
   } else showToast('Erro ao registrar pagamento: ' + (r.message || ''), 'error');
+}
+
+let editCpId = null;
+
+function abrirEditarClientePacote(id, clientName, pkgName, valor, expira, status, obs) {
+  editCpId = id;
+  document.getElementById('editar-cp-info').innerHTML = `<strong>${clientName}</strong> — ${pkgName}`;
+  document.getElementById('editar-cp-valor').value = Number(valor).toFixed(2);
+  document.getElementById('editar-cp-expira').value = expira;
+  document.getElementById('editar-cp-status').value = status;
+  document.getElementById('editar-cp-obs').value = obs || '';
+  openModal('modal-editar-cp');
+}
+
+async function salvarEdicaoClientePacote() {
+  if (!editCpId) return;
+  const valor = parseFloat(document.getElementById('editar-cp-valor').value);
+  const expira = document.getElementById('editar-cp-expira').value;
+  const status = document.getElementById('editar-cp-status').value;
+  const obs = document.getElementById('editar-cp-obs').value;
+  if (!expira) { showToast('Informe a data de expiração!', 'error'); return; }
+  const r = await patch('/packages/client-package/' + editCpId, { amountPaid: valor, expiresAt: expira, status, notes: obs });
+  if (r.id) {
+    closeModal('modal-editar-cp');
+    showToast('✅ Pacote atualizado!', 'success');
+    loadPacotes();
+  } else showToast('Erro ao atualizar: ' + (r.message || ''), 'error');
+}
+
+async function desmarcarPago(id, clientName) {
+  if (!confirm(`Estornar pagamento do pacote de ${clientName}?\nO lançamento no financeiro será removido.`)) return;
+  const r = await post('/packages/client-package/' + id + '/unmark-paid', {});
+  if (r && r.id !== undefined) {
+    showToast('✅ Pagamento estornado.', 'success');
+    loadPacotes();
+    loadDashboard();
+  } else showToast('Erro ao estornar: ' + (r?.message || ''), 'error');
+}
+
+async function excluirClientePacote(id, clientName) {
+  if (!confirm(`Excluir definitivamente o pacote de ${clientName}?\nEsta ação não pode ser desfeita.`)) return;
+  const r = await del('/packages/client-package/' + id);
+  if (r !== null) {
+    showToast('✅ Pacote excluído.', 'success');
+    loadPacotes();
+  } else showToast('Erro ao excluir pacote.', 'error');
 }
 
 // ============================================================

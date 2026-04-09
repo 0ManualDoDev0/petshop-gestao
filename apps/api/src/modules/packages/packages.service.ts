@@ -89,6 +89,7 @@ export class PackagesService {
           registeredById,
           referenceDate: new Date(),
           isPaid: true,
+          clientPackageId: id,
         },
       }),
     ]);
@@ -122,6 +123,37 @@ export class PackagesService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  updateClientPackage(id: string, data: any) {
+    const { amountPaid, expiresAt, notes, status } = data;
+    const updateData: any = {};
+    if (amountPaid !== undefined) updateData.amountPaid = Number(amountPaid);
+    if (expiresAt !== undefined) updateData.expiresAt = new Date(expiresAt);
+    if (notes !== undefined) updateData.notes = notes;
+    if (status !== undefined) updateData.status = status;
+    return this.prisma.clientPackage.update({
+      where: { id },
+      data: updateData,
+      include: {
+        package: { select: { id: true, name: true } },
+        client: { select: { id: true, name: true } },
+      },
+    });
+  }
+
+  async unmarkPaid(id: string) {
+    await this.prisma.$transaction([
+      this.prisma.clientPackage.update({ where: { id }, data: { isPaid: false, paymentMethod: null } }),
+      this.prisma.cashEntry.deleteMany({ where: { clientPackageId: id } }),
+    ]);
+    return this.prisma.clientPackage.findUnique({ where: { id } });
+  }
+
+  async deleteClientPackage(id: string) {
+    await this.prisma.appointment.updateMany({ where: { clientPackageId: id }, data: { clientPackageId: null } });
+    await this.prisma.cashEntry.deleteMany({ where: { clientPackageId: id } });
+    return this.prisma.clientPackage.delete({ where: { id } });
   }
 
   async useSession(clientPackageId: string, data: any) {
