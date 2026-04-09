@@ -1338,7 +1338,10 @@ function desenharPizza(data, totalRevenue) {
 // ============================================================
 async function loadAgenda(date) {
   const input = document.getElementById('agenda-date');
-  if (!date) { date = new Date().toISOString().split('T')[0]; input.value = date; }
+  if (!date) {
+    date = input.value || new Date().toISOString().split('T')[0];
+    if (!input.value) input.value = date;
+  }
   const apts = await get('/appointments?date=' + date);
   if (!apts) return;
   const counter = document.getElementById('agenda-counter');
