@@ -52,40 +52,47 @@ export class PackagesService {
     expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
     const amountPaid = data.amountPaid !== undefined ? Number(data.amountPaid) : Number(pkg.totalPrice);
 
-    return this.prisma.$transaction(async (tx) => {
-      const cp = await tx.clientPackage.create({
-        data: {
-          clientId: data.clientId,
-          packageId: data.packageId,
-          soldById: data.soldById,
-          expiresAt,
-          sessionsTotal: pkg.totalSessions,
-          sessionsUsed: 0,
-          amountPaid,
-          status: 'active',
-          notes: data.notes,
-        },
-        include: {
-          package: { select: { id: true, name: true } },
-          client: { select: { id: true, name: true } },
-        },
-      });
+    return this.prisma.clientPackage.create({
+      data: {
+        clientId: data.clientId,
+        packageId: data.packageId,
+        soldById: data.soldById,
+        expiresAt,
+        sessionsTotal: pkg.totalSessions,
+        sessionsUsed: 0,
+        amountPaid,
+        status: 'active',
+        notes: data.notes,
+      },
+      include: {
+        package: { select: { id: true, name: true } },
+        client: { select: { id: true, name: true } },
+      },
+    });
+  }
 
-      await tx.cashEntry.create({
+  async markAsPaid(id: string, paymentMethod: string, registeredById: string) {
+    const cp = await this.prisma.clientPackage.findUnique({
+      where: { id },
+      include: { package: { select: { name: true } }, client: { select: { name: true } } },
+    });
+    if (!cp) throw new NotFoundException('Pacote não encontrado');
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.clientPackage.update({ where: { id }, data: { isPaid: true, paymentMethod: paymentMethod as any } }),
+      this.prisma.cashEntry.create({
         data: {
           type: 'income',
-          amount: amountPaid,
+          amount: cp.amountPaid,
           description: `Pacote: ${cp.package.name} — ${cp.client.name}`,
           category: 'Pacotes',
-          paymentMethod: data.paymentMethod || 'pix',
-          registeredById: data.soldById,
+          paymentMethod: paymentMethod as any,
+          registeredById,
           referenceDate: new Date(),
           isPaid: true,
         },
-      });
-
-      return cp;
-    });
+      }),
+    ]);
+    return updated;
   }
 
   getClientPackages(clientId: string) {

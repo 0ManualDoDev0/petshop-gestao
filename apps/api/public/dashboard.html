@@ -1005,6 +1005,31 @@
   </div>
 </div>
 
+<!-- MODAL: Marcar Pacote como Pago -->
+<div class="modal-overlay" id="modal-marcar-pago">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title">💰 Marcar como Recebido</div>
+      <button class="modal-close" onclick="closeModal('modal-marcar-pago')">×</button>
+    </div>
+    <div id="marcar-pago-info" style="background:var(--surface2);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--muted);"></div>
+    <div class="form-group">
+      <label class="form-label">Forma de Pagamento</label>
+      <select class="form-input" id="marcar-pago-metodo">
+        <option value="pix">💠 PIX</option>
+        <option value="cash">💵 Dinheiro</option>
+        <option value="credit_card">💳 Cartão de Crédito</option>
+        <option value="debit_card">💳 Cartão de Débito</option>
+        <option value="transfer">🏦 Transferência</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-marcar-pago')">Cancelar</button>
+      <button class="btn btn-success" onclick="confirmarMarcarPago()">✓ Confirmar Recebimento</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Usar Sessão -->
 <div class="modal-overlay" id="modal-usar-sessao">
   <div class="modal" style="max-width:440px;">
@@ -2185,8 +2210,11 @@ function renderClientPackages(list) {
         <td style="font-size:12px;color:${expired?'var(--red)':'var(--muted)'};">${expDate.toLocaleDateString('pt-BR')}</td>
         <td style="font-weight:600;color:var(--green);">R$ ${Number(cp.amountPaid).toFixed(2).replace('.', ',')}</td>
         <td><span class="badge ${statusBadge[cp.status] || 'badge-scheduled'}">${statusLabels[cp.status] || cp.status}</span></td>
-        <td>
-          ${cp.status === 'active' && used < total ? `<button class="btn btn-warning btn-sm" onclick="abrirUsarSessao('${cp.id}','${cp.client?.name}','${cp.package?.name}',${used},${total})">✂️ Usar Sessão</button>` : ''}
+        <td style="display:flex;gap:4px;flex-wrap:wrap;">
+          ${cp.isPaid
+            ? `<span style="font-size:11px;color:var(--green);font-weight:600;">✓ Pago</span>`
+            : `<button class="btn btn-success btn-sm" onclick="abrirMarcarPago('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${cp.amountPaid})">💰 Recebido</button>`}
+          ${cp.status === 'active' && used < total ? `<button class="btn btn-warning btn-sm" onclick="abrirUsarSessao('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${used},${total})">✂️ Usar Sessão</button>` : ''}
         </td>
       </tr>
     `;
@@ -2320,6 +2348,27 @@ async function confirmarUsarSessao() {
     showToast(`✅ Sessão utilizada! ${restantes} restante(s).`, 'success');
     loadPacotes();
   } else showToast('Erro: ' + (r.message || ''), 'error');
+}
+
+let marcarPagoId = null;
+
+function abrirMarcarPago(id, clientName, pkgName, valor) {
+  marcarPagoId = id;
+  document.getElementById('marcar-pago-info').innerHTML =
+    `<strong>${clientName}</strong> — ${pkgName}<br>Valor: <strong style="color:var(--green);">R$ ${Number(valor).toFixed(2).replace('.', ',')}</strong>`;
+  openModal('modal-marcar-pago');
+}
+
+async function confirmarMarcarPago() {
+  if (!marcarPagoId) return;
+  const paymentMethod = document.getElementById('marcar-pago-metodo').value;
+  const r = await post('/packages/client-package/' + marcarPagoId + '/mark-paid', { paymentMethod });
+  if (r.id || r.isPaid !== undefined) {
+    closeModal('modal-marcar-pago');
+    showToast('✅ Pagamento registrado no caixa!', 'success');
+    loadPacotes();
+    loadDashboard();
+  } else showToast('Erro ao registrar pagamento: ' + (r.message || ''), 'error');
 }
 
 // ============================================================

@@ -43,6 +43,12 @@ export class PackagesController {
     return this.service.getClientPackages(clientId);
   }
 
+  // ── Marcar como pago ────────────────────────────────────────
+  @Post('client-package/:id/mark-paid')
+  markAsPaid(@Param('id') id: string, @Body() body: any, @Request() req: any) {
+    return this.service.markAsPaid(id, body.paymentMethod || 'pix', body.registeredById || req.user?.id);
+  }
+
   // ── Usar sessão ─────────────────────────────────────────────
   @Post('client-package/:id/use-session')
   useSession(@Param('id') id: string, @Body() body: any) {

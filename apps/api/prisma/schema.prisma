@@ -309,9 +309,11 @@ model ClientPackage {
   expiresAt        DateTime      @map("expires_at")
   sessionsTotal    Int           @map("sessions_total")
   sessionsUsed     Int           @default(0) @map("sessions_used")
-  amountPaid       Decimal       @db.Decimal(10, 2) @map("amount_paid")
-  status           PackageStatus @default(active)
-  notes            String?       @db.Text
+  amountPaid       Decimal        @db.Decimal(10, 2) @map("amount_paid")
+  isPaid           Boolean        @default(false) @map("is_paid")
+  paymentMethod    PaymentMethod? @map("payment_method")
+  status           PackageStatus  @default(active)
+  notes            String?        @db.Text
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
