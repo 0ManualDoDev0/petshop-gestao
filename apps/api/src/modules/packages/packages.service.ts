@@ -77,7 +77,7 @@ export class PackagesService {
       include: { package: { select: { name: true } }, client: { select: { name: true } } },
     });
     if (!cp) throw new NotFoundException('Pacote não encontrado');
-    const [updated] = await this.prisma.$transaction([
+    const [updated, entry] = await this.prisma.$transaction([
       this.prisma.clientPackage.update({ where: { id }, data: { isPaid: true, paymentMethod: paymentMethod as any } }),
       this.prisma.cashEntry.create({
         data: {
@@ -93,6 +93,7 @@ export class PackagesService {
         },
       }),
     ]);
+    console.log(`[markAsPaid] clientPackage id=${id} | cashEntry criada id=${entry.id} clientPackageId=${entry.clientPackageId}`);
     return updated;
   }
 
@@ -151,8 +152,25 @@ export class PackagesService {
   }
 
   async deleteClientPackage(id: string) {
+    const cp = await this.prisma.clientPackage.findUnique({
+      where: { id },
+      include: { package: { select: { name: true } }, client: { select: { name: true } } },
+    });
+    if (!cp) throw new NotFoundException('Pacote não encontrado');
+
     await this.prisma.appointment.updateMany({ where: { clientPackageId: id }, data: { clientPackageId: null } });
-    await this.prisma.cashEntry.deleteMany({ where: { clientPackageId: id } });
+
+    // Entradas novas: vinculadas pelo clientPackageId
+    const byId = await this.prisma.cashEntry.deleteMany({ where: { clientPackageId: id } });
+
+    // Fallback: entradas legadas (antes da migration) vinculadas apenas por descrição
+    const legacyDesc = `Pacote: ${cp.package.name} — ${cp.client.name}`;
+    const byDesc = await this.prisma.cashEntry.deleteMany({
+      where: { description: legacyDesc, category: 'Pacotes', clientPackageId: null },
+    });
+
+    console.log(`[deleteClientPackage] id=${id} | cashEntries deletadas: por clientPackageId=${byId.count}, legado por descrição=${byDesc.count}`);
+
     return this.prisma.clientPackage.delete({ where: { id } });
   }
 
