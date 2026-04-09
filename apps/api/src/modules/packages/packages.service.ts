@@ -163,13 +163,20 @@ export class PackagesService {
     // Entradas novas: vinculadas pelo clientPackageId
     const byId = await this.prisma.cashEntry.deleteMany({ where: { clientPackageId: id } });
 
-    // Fallback: entradas legadas (antes da migration) vinculadas apenas por descrição
-    const legacyDesc = `Pacote: ${cp.package.name} — ${cp.client.name}`;
+    // Fallback: entradas legadas (antes da migration) sem clientPackageId vinculado
+    // Usa contains para tolerar variações de formatação na descrição
     const byDesc = await this.prisma.cashEntry.deleteMany({
-      where: { description: legacyDesc, category: 'Pacotes', clientPackageId: null },
+      where: {
+        AND: [
+          { description: { contains: cp.client.name } },
+          { description: { contains: cp.package.name } },
+        ],
+        category: 'Pacotes',
+        clientPackageId: null,
+      },
     });
 
-    console.log(`[deleteClientPackage] id=${id} | cashEntries deletadas: por clientPackageId=${byId.count}, legado por descrição=${byDesc.count}`);
+    console.log(`[deleteClientPackage] id=${id} cliente="${cp.client.name}" pacote="${cp.package.name}" | cashEntries deletadas: por clientPackageId=${byId.count}, legado por descrição=${byDesc.count}`);
 
     return this.prisma.clientPackage.delete({ where: { id } });
   }
