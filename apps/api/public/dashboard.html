@@ -2452,6 +2452,7 @@ async function excluirClientePacote(id, clientName) {
   if (r !== null) {
     showToast('✅ Pacote excluído.', 'success');
     loadPacotes();
+    loadDashboard();
   } else showToast('Erro ao excluir pacote.', 'error');
 }
 
