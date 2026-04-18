@@ -2284,6 +2284,19 @@ async function gerarRelatorioIA() {
   const end   = `${ano}-${String(mes).padStart(2,'0')}-${lastDay}`;
   const mesNome = new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
+  // Abrir janela ANTES dos awaits — navegadores bloqueiam window.open() fora do contexto do clique
+  const win = window.open('', '_blank');
+  if (!win) {
+    showToast('⚠️ Permita popups para este site e tente novamente.', 'error');
+    return;
+  }
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gerando Relatório…</title>
+    <style>body{font-family:'Segoe UI',Arial,sans-serif;background:#0f1117;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;gap:16px;}
+    .spinner{width:40px;height:40px;border:3px solid #333;border-top-color:#6c8fff;border-radius:50%;animation:spin .7s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}.sub{font-size:13px;color:#666;}</style></head>
+    <body><div class="spinner"></div><div>Gerando Relatório IA…</div><div class="sub">Aguarde, buscando dados e consultando Claude AI</div></body></html>`);
+  win.document.close();
+
   const btn = document.getElementById('btn-gerar-ia');
   const status = document.getElementById('ia-status');
   btn.disabled = true;
@@ -2299,6 +2312,7 @@ async function gerarRelatorioIA() {
   if (!revenue) {
     btn.disabled = false; btn.innerHTML = '✨ Gerar Análise';
     status.textContent = '❌ Erro ao buscar dados financeiros.';
+    win.close();
     return;
   }
 
@@ -2352,9 +2366,10 @@ Seja específico com os números. Use linguagem profissional mas acessível.`;
     const json = await res.json();
     const analise = json.analysis || '';
 
-    abrirPDFRelatorioIA(mesNome, totals, byPaymentMethod, byCategory, analise, employees || []);
+    abrirPDFRelatorioIA(win, mesNome, totals, byPaymentMethod, byCategory, analise, employees || []);
     closeModal('modal-relatorio-ia');
   } catch (err) {
+    win.close();
     status.textContent = `❌ Erro: ${err.message}`;
     showToast('Erro ao chamar API da IA. Verifique a chave.', 'error');
   } finally {
@@ -2363,7 +2378,7 @@ Seja específico com os números. Use linguagem profissional mas acessível.`;
   }
 }
 
-function abrirPDFRelatorioIA(periodo, totals, byPayment, byCategory, analise, employees) {
+function abrirPDFRelatorioIA(win, periodo, totals, byPayment, byCategory, analise, employees) {
   const PAY_PT = { pix:'PIX', cash:'Dinheiro', credit_card:'Cartão Crédito', debit_card:'Cartão Débito', transfer:'Transferência', hotel:'Hotel' };
   const fmt = v => `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
   const lucroColor = totals.profit >= 0 ? '#00b894' : '#ff6b6b';
@@ -2377,7 +2392,6 @@ function abrirPDFRelatorioIA(periodo, totals, byPayment, byCategory, analise, em
 
   const secoes = analise.split(/\n(?=\d+\.\s\*\*)/);
 
-  const win = window.open('', '_blank');
   win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
     <meta charset="UTF-8"><title>Relatório IA — ${periodo}</title>
     <style>
