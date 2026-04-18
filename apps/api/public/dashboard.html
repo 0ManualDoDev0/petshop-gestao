@@ -2429,20 +2429,31 @@ async function loadRelFaturamento(start, end) {
 
   // Gráfico de pagamentos
   const totalPay = byPaymentMethod.reduce((s, p) => s + p.amount, 0) || 1;
+  const PAY_PILL = {
+    pix:         { bg:'rgba(52,211,153,.12)',  border:'rgba(52,211,153,.25)',  color:'var(--green)',   icon:'⚡' },
+    cash:        { bg:'rgba(251,191,36,.12)',  border:'rgba(251,191,36,.25)',  color:'var(--yellow)',  icon:'💵' },
+    credit_card: { bg:'rgba(108,143,255,.12)', border:'rgba(108,143,255,.25)', color:'var(--accent)',  icon:'💳' },
+    debit_card:  { bg:'rgba(108,143,255,.12)', border:'rgba(108,143,255,.25)', color:'var(--accent)',  icon:'💳' },
+    transfer:    { bg:'rgba(108,143,255,.12)', border:'rgba(108,143,255,.25)', color:'var(--accent)',  icon:'🔄' },
+    hotel:       { bg:'rgba(139,92,246,.12)',  border:'rgba(139,92,246,.25)',  color:'var(--accent2)', icon:'🏨' },
+  };
   document.getElementById('rel-chart-pay').innerHTML = byPaymentMethod.length === 0
     ? '<div class="empty"><div class="empty-icon">—</div><div>Sem receitas no período</div></div>'
-    : byPaymentMethod.map(p => `
-      <div style="margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <span style="font-size:13px;font-weight:500;">${PAY_LABELS[p.method] || p.method}</span>
-          <span style="font-size:13px;font-weight:600;color:var(--green);">R$ ${p.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-        </div>
-        <div style="background:var(--surface3);border-radius:4px;height:8px;overflow:hidden;">
-          <div style="background:var(--green);height:100%;width:${(p.amount/totalPay*100).toFixed(1)}%;border-radius:4px;"></div>
-        </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${(p.amount/totalPay*100).toFixed(1)}%</div>
-      </div>
-    `).join('');
+    : `<div style="display:flex;flex-direction:column;gap:8px;">${
+        byPaymentMethod.filter(p => p.amount > 0).map(p => {
+          const s = PAY_PILL[p.method] || PAY_PILL.credit_card;
+          const pct = (p.amount / totalPay * 100).toFixed(1);
+          return `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${s.bg};border:1px solid ${s.border};border-radius:12px;">
+            <span style="font-size:18px;flex-shrink:0;">${s.icon}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:700;color:${s.color};">${PAY_LABELS[p.method] || p.method}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:1px;">${pct}% do total</div>
+            </div>
+            <div style="font-size:15px;font-weight:800;color:${s.color};white-space:nowrap;">R$ ${p.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+          </div>`;
+        }).join('')
+      }</div>`;
 
   // Tabela por categoria
   document.getElementById('rel-table-cat').innerHTML = byCategory.length === 0
