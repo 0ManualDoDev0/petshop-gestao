@@ -791,7 +791,7 @@
         <!-- Gráfico de barras por dia -->
         <div class="card">
           <div class="section-label">FATURAMENTO POR DIA</div>
-          <div id="rel-chart-day" style="min-height:160px;"></div>
+          <div id="rel-chart-day" style="max-height:200px;overflow:hidden;"></div>
         </div>
         <!-- Por forma de pagamento -->
         <div class="card">
@@ -2642,21 +2642,30 @@ function renderBarChart(containerId, items, valueKey) {
       </div>
     `).join('');
   } else {
-    const barH = 120;
+    const barH = 150;
+    const hasMore = items.length > 7;
+    const last7   = hasMore ? items.slice(-7) : items;
+    const renderBars = (set, maxV) => set.map(i => `
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
+        <div style="font-size:9px;color:var(--muted);margin-bottom:3px;white-space:nowrap;overflow:hidden;max-width:36px;text-overflow:ellipsis;">${i.value > 0 ? 'R$' + Math.round(i.value) : ''}</div>
+        <div title="R$ ${i.value.toLocaleString('pt-BR',{minimumFractionDigits:2})}" style="width:70%;background:linear-gradient(180deg,#6c5ce7 0%,#0984e3 100%);border-radius:4px 4px 0 0;height:${Math.max((i.value/maxV)*barH,i.value>0?4:0).toFixed(0)}px;box-shadow:0 2px 8px rgba(108,92,231,.3);transition:opacity .15s;" onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'"></div>
+        ${i.value2 !== undefined ? `<div style="width:70%;background:var(--red);opacity:.45;border-radius:0 0 2px 2px;height:${Math.max((i.value2/maxV)*barH,i.value2>0?2:0).toFixed(0)}px;"></div>` : ''}
+        <div style="font-size:9px;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;max-width:38px;text-overflow:ellipsis;text-align:center;">${i.label}</div>
+      </div>`).join('');
     el.innerHTML = `
-      <div style="display:flex;align-items:flex-end;gap:4px;height:${barH + 30}px;padding-bottom:24px;position:relative;">
-        ${items.map(i => `
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;">
-            <div style="font-size:9px;color:var(--muted);margin-bottom:2px;writing-mode:horizontal-tb;white-space:nowrap;overflow:hidden;max-width:32px;text-overflow:ellipsis;">${i.value > 0 ? 'R$' + Math.round(i.value) : ''}</div>
-            <div style="width:100%;background:var(--accent);border-radius:3px 3px 0 0;height:${Math.max((i.value/maxVal)*barH,i.value>0?3:0).toFixed(0)}px;opacity:.85;"></div>
-            ${i.value2 !== undefined ? `<div style="width:100%;background:var(--red);opacity:.6;height:${Math.max((i.value2/maxVal)*barH,i.value2>0?2:0).toFixed(0)}px;"></div>` : ''}
-            <div style="font-size:9px;color:var(--muted);margin-top:4px;writing-mode:horizontal-tb;white-space:nowrap;overflow:hidden;max-width:36px;text-overflow:ellipsis;">${i.label}</div>
-          </div>
-        `).join('')}
+      <div id="${containerId}-compact" style="display:flex;align-items:flex-end;gap:3px;height:${barH+38}px;padding-bottom:24px;">
+        ${renderBars(last7, maxVal)}
       </div>
-      <div style="display:flex;gap:12px;margin-top:4px;">
-        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:2px;background:var(--accent);"></div>Receita</div>
-        ${items[0]?.value2 !== undefined ? '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:2px;background:var(--red);opacity:.6;"></div>Despesa</div>' : ''}
+      ${hasMore ? `
+      <div id="${containerId}-full" style="display:none;align-items:flex-end;gap:3px;height:${barH+38}px;padding-bottom:24px;">
+        ${renderBars(items, maxVal)}
+      </div>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
+        <div style="display:flex;gap:12px;">
+          <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:2px;background:linear-gradient(135deg,#6c5ce7,#0984e3);"></div>Receita</div>
+          ${items[0]?.value2 !== undefined ? '<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:2px;background:var(--red);opacity:.6;"></div>Despesa</div>' : ''}
+        </div>
+        ${hasMore ? `<button onclick="var c=document.getElementById('${containerId}-compact'),f=document.getElementById('${containerId}-full'),b=this;if(f.style.display==='none'){f.style.display='flex';c.style.display='none';b.textContent='Ver menos ↑';}else{c.style.display='flex';f.style.display='none';b.textContent='Ver todos (${items.length}) ↓';}" style="font-size:11px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;font-family:var(--font);padding:2px 0;">Ver todos (${items.length}) ↓</button>` : ''}
       </div>
     `;
   }
