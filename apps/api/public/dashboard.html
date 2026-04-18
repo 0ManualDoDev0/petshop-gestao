@@ -2455,27 +2455,28 @@ async function loadRelFaturamento(start, end) {
         }).join('')
       }</div>`;
 
-  // Tabela por categoria
-  document.getElementById('rel-table-cat').innerHTML = byCategory.length === 0
+  // Cards por categoria
+  const activeCats = byCategory.filter(c => (c.income || 0) > 0 || (c.expense || 0) > 0);
+  document.getElementById('rel-table-cat').innerHTML = activeCats.length === 0
     ? '<div class="empty"><div>Sem dados no período</div></div>'
-    : `<table style="width:100%;border-collapse:collapse;">
-        <thead><tr>
-          <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Categoria</th>
-          <th style="text-align:right;padding:8px 12px;font-size:11px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Entradas</th>
-          <th style="text-align:right;padding:8px 12px;font-size:11px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">Saídas</th>
-          <th style="text-align:right;padding:8px 12px;font-size:11px;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);">% Receita</th>
-        </tr></thead>
-        <tbody>
-          ${byCategory.map(c => `
-            <tr>
-              <td style="padding:10px 12px;font-size:13px;border-bottom:1px solid var(--border);">${c.category}</td>
-              <td style="padding:10px 12px;font-size:13px;text-align:right;font-weight:600;color:var(--green);border-bottom:1px solid var(--border);">R$ ${(c.income||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-              <td style="padding:10px 12px;font-size:13px;text-align:right;color:var(--red);border-bottom:1px solid var(--border);">R$ ${(c.expense||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-              <td style="padding:10px 12px;font-size:13px;text-align:right;color:var(--muted);border-bottom:1px solid var(--border);">${totals.income > 0 ? ((c.income||0)/totals.income*100).toFixed(1) : 0}%</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>`;
+    : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">${
+        activeCats.map(c => {
+          const inc = c.income || 0;
+          const exp = c.expense || 0;
+          const pct = totals.income > 0 ? (inc / totals.income * 100).toFixed(1) : '0.0';
+          const hasInc = inc > 0;
+          const hasExp = exp > 0;
+          return `
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <span style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.category}</span>
+              ${hasInc ? `<span style="font-size:10px;font-weight:700;background:rgba(52,211,153,.12);color:var(--green);border-radius:20px;padding:2px 7px;white-space:nowrap;">${pct}%</span>` : ''}
+            </div>
+            ${hasInc ? `<div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:11px;color:var(--muted);">⬆</span><span style="font-size:14px;font-weight:700;color:var(--green);">R$ ${inc.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>` : ''}
+            ${hasExp ? `<div style="display:flex;align-items:baseline;gap:4px;"><span style="font-size:11px;color:var(--muted);">⬇</span><span style="font-size:13px;font-weight:600;color:var(--red);">R$ ${exp.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>` : ''}
+          </div>`;
+        }).join('')
+      }</div>`;
 }
 
 // ── Funcionários ─────────────────────────────────────────────
