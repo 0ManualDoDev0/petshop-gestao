@@ -37,9 +37,12 @@
   .logo-sub { font-size:11px;color:var(--muted);font-weight:400; }
   .nav { padding:12px 8px;flex:1; }
   .nav-section { font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:12px 12px 6px; }
-  .nav-item { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--muted);transition:all .15s;margin-bottom:2px; }
-  .nav-item:hover { background:var(--surface2);color:var(--text); }
-  .nav-item.active { background:rgba(108,143,255,0.12);color:var(--accent);box-shadow:inset 3px 0 0 var(--accent); }
+  .nav-item { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:14px;color:var(--muted);transition:background .2s,color .2s,box-shadow .2s;margin-bottom:2px; }
+  .nav-item:hover { background:var(--surface3);color:var(--text); }
+  .nav-item.active { background:rgba(108,143,255,0.15);color:var(--accent);box-shadow:inset 3px 0 0 var(--accent);font-weight:600; }
+  .nav-item.active svg { stroke:var(--accent); }
+  .nav-badge { min-width:18px;height:18px;padding:0 5px;background:var(--accent);color:#fff;border-radius:9px;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-left:auto;line-height:1;flex-shrink:0; }
+  .nav-badge--hotel { background:var(--green); }
   .nav-item svg { width:16px;height:16px;flex-shrink:0; }
   .sidebar-footer { padding:16px;border-top:1px solid var(--border); }
   .user-card { display:flex;align-items:center;gap:10px; }
@@ -429,11 +432,11 @@
     </div>
     <div class="nav-item" onclick="showPage('agenda')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-      Agenda
+      Agenda<span class="nav-badge" id="nav-badge-agenda" style="display:none;"></span>
     </div>
     <div class="nav-item" onclick="showPage('hotel')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      Hotel
+      Hotel<span class="nav-badge nav-badge--hotel" id="nav-badge-hotel" style="display:none;"></span>
     </div>
     <div class="nav-section">Gestão</div>
     <div class="nav-item" onclick="showPage('clientes')">
@@ -1471,9 +1474,11 @@ async function loadDashboard() {
     document.getElementById('kpi-mes').textContent = 'R$ ' + (kpis.month.income || 0).toLocaleString('pt-BR');
     document.getElementById('kpi-mes-sub').textContent = `Lucro: R$ ${(kpis.month.profit || 0).toLocaleString('pt-BR')}`;
     document.getElementById('kpi-hotel').textContent = kpis.hotel.petsCheckedIn;
+    const _hn = kpis.hotel.petsCheckedIn || 0; const _hb = document.getElementById('nav-badge-hotel'); if (_hb) { _hb.textContent = _hn; _hb.style.display = _hn ? '' : 'none'; }
 
     // Agenda de hoje
     const apts = kpis.today.appointments || [];
+    const _an = apts.filter(a => a.status !== 'completed' && a.status !== 'cancelled').length; const _ab = document.getElementById('nav-badge-agenda'); if (_ab) { _ab.textContent = _an; _ab.style.display = _an ? '' : 'none'; }
     const agendaEl = document.getElementById('agenda-hoje');
     if (apts.length === 0) {
       agendaEl.innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div>Nenhum agendamento hoje</div></div>';
