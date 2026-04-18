@@ -1428,8 +1428,8 @@
         <span style="font-size:16px;flex-shrink:0;">✨</span>
         <div style="font-size:12px;color:var(--muted);line-height:1.55;">A análise inclui <strong style="color:var(--text);">faturamento, despesas, ticket médio, sazonalidade</strong> e sugestões de ação baseadas nos dados do período.</div>
       </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:14px;padding:11px;" disabled title="Em breve">✨ Gerar Análise</button>
-      <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--muted);opacity:.6;">Funcionalidade em desenvolvimento</div>
+      <button class="btn btn-primary" id="btn-gerar-ia" style="width:100%;justify-content:center;font-size:14px;padding:11px;" onclick="gerarRelatorioIA()">✨ Gerar Análise</button>
+      <div id="ia-status" style="text-align:center;margin-top:10px;font-size:12px;color:var(--muted);display:none;"></div>
     </div>
   </div>
 </div>
@@ -1438,6 +1438,7 @@
 
 <script>
 const API = 'https://petshop-gestao-production.up.railway.app/api/v1';
+const AI_API_KEY = ''; // Chave Anthropic — preencher para ativar Relatório IA
 let TOKEN = localStorage.getItem('petshop_token');
 let currentUser = null;
 let currentAptId = null;
@@ -2270,6 +2271,190 @@ async function salvarCliente() {
   const r = await post('/clients', { name: nome, phone: document.getElementById('cli-tel').value, email: document.getElementById('cli-email').value });
   if (r.id) { closeModal('modal-cliente'); showToast('✅ Cliente cadastrado!', 'success'); loadClientes(); }
   else showToast('Erro ao cadastrar cliente', 'error');
+}
+
+// ============================================================
+// RELATÓRIO IA
+// ============================================================
+async function gerarRelatorioIA() {
+  if (!AI_API_KEY) {
+    showToast('⚠️ Configure AI_API_KEY no código para usar esta função.', 'error');
+    return;
+  }
+
+  const mes  = parseInt(document.getElementById('ia-mes').value);
+  const ano  = parseInt(document.getElementById('ia-ano').value);
+  const start = `${ano}-${String(mes).padStart(2,'0')}-01`;
+  const lastDay = new Date(ano, mes, 0).getDate();
+  const end   = `${ano}-${String(mes).padStart(2,'0')}-${lastDay}`;
+  const mesNome = new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+  const btn = document.getElementById('btn-gerar-ia');
+  const status = document.getElementById('ia-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="refresh-icon spinning" style="animation:spin .6s linear infinite;display:inline-block;">↻</span> Buscando dados...';
+  status.style.display = 'block';
+  status.textContent = 'Consultando lançamentos do período...';
+
+  const [revenue, employees] = await Promise.all([
+    get(`/reports/revenue?start=${start}&end=${end}`),
+    get(`/reports/employees?start=${start}&end=${end}`)
+  ]);
+
+  if (!revenue) {
+    btn.disabled = false; btn.innerHTML = '✨ Gerar Análise';
+    status.textContent = '❌ Erro ao buscar dados financeiros.';
+    return;
+  }
+
+  const { totals, byDay, byCategory, byPaymentMethod } = revenue;
+  const PAY_PT = { pix:'PIX', cash:'Dinheiro', credit_card:'Cartão Crédito', debit_card:'Cartão Débito', transfer:'Transferência', hotel:'Hotel' };
+
+  const dadosFormatados = `Você é um consultor financeiro especializado em petshops. Analise os dados abaixo e gere um relatório executivo profissional em português.
+
+PERÍODO: ${mesNome}
+PETSHOP: ${currentUser?.name || 'PetShop Gestão'}
+
+═══ RESUMO FINANCEIRO ═══
+• Receita Total: R$ ${totals.income.toLocaleString('pt-BR',{minimumFractionDigits:2})}
+• Despesas Totais: R$ ${totals.expense.toLocaleString('pt-BR',{minimumFractionDigits:2})}
+• Lucro Líquido: R$ ${totals.profit.toLocaleString('pt-BR',{minimumFractionDigits:2})}
+• Margem de Lucro: ${totals.profitMargin}%
+• Total de Transações: ${totals.transactions}
+• Ticket Médio/dia: R$ ${byDay.length ? (totals.income / byDay.length).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—'}
+
+═══ FATURAMENTO POR DIA ═══
+${byDay.map(d => `${new Date(d.date+'T12:00:00').toLocaleDateString('pt-BR')}: Receita R$ ${d.income.toLocaleString('pt-BR',{minimumFractionDigits:2})} | Despesa R$ ${(d.expense||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join('\n')}
+
+═══ POR FORMA DE PAGAMENTO ═══
+${byPaymentMethod.filter(p=>p.amount>0).map(p=>`${PAY_PT[p.method]||p.method}: R$ ${p.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join('\n')}
+
+═══ POR CATEGORIA ═══
+${byCategory.filter(c=>(c.income||0)+(c.expense||0)>0).map(c=>`${c.category}: Receita R$ ${(c.income||0).toLocaleString('pt-BR',{minimumFractionDigits:2})} | Despesa R$ ${(c.expense||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}`).join('\n')}
+
+${employees && employees.length > 0 ? `═══ DESEMPENHO DOS FUNCIONÁRIOS ═══\n${employees.map(e=>`${e.employee.name}: ${e.completed} atendimentos concluídos | Receita R$ ${e.revenue.toLocaleString('pt-BR',{minimumFractionDigits:2})} | Taxa ${e.completionRate}%`).join('\n')}` : ''}
+
+Estruture sua análise em 5 seções:
+1. **RESUMO EXECUTIVO** — visão geral do período em 2-3 frases
+2. **PONTOS POSITIVOS** — o que foi bem (mínimo 3 itens com bullet points)
+3. **PONTOS DE ATENÇÃO** — riscos ou quedas identificadas (mínimo 2 itens)
+4. **ANÁLISE DE TENDÊNCIA** — padrões identificados nos dados diários e por categoria
+5. **RECOMENDAÇÕES** — 3 a 5 ações concretas e práticas para o próximo mês
+
+Seja específico com os números. Use linguagem profissional mas acessível.`;
+
+  status.textContent = 'Gerando análise com IA...';
+  btn.innerHTML = '<span style="animation:spin .6s linear infinite;display:inline-block;">↻</span> Gerando...';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AI_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: dadosFormatados }]
+      })
+    });
+
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const json = await res.json();
+    const analise = json.content?.[0]?.text || '';
+
+    abrirPDFRelatorioIA(mesNome, totals, byPaymentMethod, byCategory, analise, employees || []);
+    closeModal('modal-relatorio-ia');
+  } catch (err) {
+    status.textContent = `❌ Erro: ${err.message}`;
+    showToast('Erro ao chamar API da IA. Verifique a chave.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✨ Gerar Análise';
+  }
+}
+
+function abrirPDFRelatorioIA(periodo, totals, byPayment, byCategory, analise, employees) {
+  const PAY_PT = { pix:'PIX', cash:'Dinheiro', credit_card:'Cartão Crédito', debit_card:'Cartão Débito', transfer:'Transferência', hotel:'Hotel' };
+  const fmt = v => `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2})}`;
+  const lucroColor = totals.profit >= 0 ? '#00b894' : '#ff6b6b';
+
+  // Converter markdown bold (**texto**) para <strong>
+  const mdToHtml = txt => txt
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^(\d+\.\s)/gm, '<br><strong>$1</strong>')
+    .replace(/^•\s/gm, '&nbsp;&nbsp;• ')
+    .replace(/\n/g, '<br>');
+
+  const secoes = analise.split(/\n(?=\d+\.\s\*\*)/);
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html lang="pt-BR"><head>
+    <meta charset="UTF-8"><title>Relatório IA — ${periodo}</title>
+    <style>
+      * { margin:0;padding:0;box-sizing:border-box; }
+      body { font-family:'Segoe UI',Arial,sans-serif;background:#f8f9fa;color:#1a1a2e;padding:32px;font-size:14px;line-height:1.6; }
+      .header { background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;padding:28px 32px;border-radius:12px;margin-bottom:28px;display:flex;justify-content:space-between;align-items:center; }
+      .header h1 { font-size:22px;font-weight:700; }
+      .header .sub { font-size:13px;opacity:.6;margin-top:4px; }
+      .header .periodo { text-align:right;font-size:13px;opacity:.7; }
+      .kpi-row { display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px; }
+      .kpi { background:#fff;border-radius:10px;padding:16px 18px;box-shadow:0 2px 10px rgba(0,0,0,.07); }
+      .kpi .label { font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px; }
+      .kpi .value { font-size:20px;font-weight:800; }
+      .kpi.green .value { color:#00b894; }
+      .kpi.red   .value { color:#ff6b6b; }
+      .kpi.blue  .value { color:#0984e3; }
+      .kpi.gray  .value { color:#636e72; }
+      .section { background:#fff;border-radius:10px;padding:20px 22px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.07); }
+      .section h2 { font-size:13px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.08em;border-bottom:1px solid #eee;padding-bottom:10px;margin-bottom:14px; }
+      .section p { color:#2d3436;line-height:1.75; }
+      .pay-row { display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px; }
+      .pay-row:last-child { border:none; }
+      .pay-label { color:#636e72; }
+      .pay-val { font-weight:700;color:#2d3436; }
+      .two-col { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+      .footer { text-align:center;font-size:11px;color:#aaa;margin-top:24px;padding-top:16px;border-top:1px solid #eee; }
+      @media print { body{padding:16px;background:#fff;} @page{margin:15mm;} }
+    </style>
+  </head><body>
+    <div class="header">
+      <div><div class="header h1">🐾 Relatório Financeiro — IA</div><div class="sub">Análise gerada automaticamente por Claude AI</div></div>
+      <div class="periodo"><strong>${periodo}</strong><br>${new Date().toLocaleDateString('pt-BR')}</div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi green"><div class="label">Receita Total</div><div class="value">${fmt(totals.income)}</div></div>
+      <div class="kpi red"><div class="label">Despesas</div><div class="value">${fmt(totals.expense)}</div></div>
+      <div class="kpi" style="border-top:3px solid ${lucroColor};"><div class="label">Lucro Líquido</div><div class="value" style="color:${lucroColor};">${fmt(totals.profit)}</div></div>
+      <div class="kpi blue"><div class="label">Margem</div><div class="value">${totals.profitMargin}%</div></div>
+    </div>
+
+    <div class="two-col" style="margin-bottom:16px;">
+      <div class="section">
+        <h2>Por Forma de Pagamento</h2>
+        ${byPayment.filter(p=>p.amount>0).map(p=>`<div class="pay-row"><span class="pay-label">${PAY_PT[p.method]||p.method}</span><span class="pay-val">${fmt(p.amount)}</span></div>`).join('')}
+      </div>
+      <div class="section">
+        <h2>Por Categoria</h2>
+        ${byCategory.filter(c=>(c.income||0)+(c.expense||0)>0).map(c=>`<div class="pay-row"><span class="pay-label">${c.category}</span><span class="pay-val" style="color:#00b894;">${fmt(c.income||0)}</span></div>`).join('')}
+      </div>
+    </div>
+
+    ${employees.length > 0 ? `<div class="section" style="margin-bottom:16px;"><h2>Desempenho dos Funcionários</h2>${employees.map(e=>`<div class="pay-row"><span class="pay-label">${e.employee.name}</span><span class="pay-val">${e.completed} atend. · ${fmt(e.revenue)} · ${e.completionRate}%</span></div>`).join('')}</div>` : ''}
+
+    <div class="section">
+      <h2>✨ Análise e Recomendações — Claude AI</h2>
+      <p>${mdToHtml(analise)}</p>
+    </div>
+
+    <div class="footer">Gerado em ${new Date().toLocaleString('pt-BR')} · PetShop Gestão · Análise por Claude AI (Anthropic)</div>
+    <script>window.onload=()=>window.print();<\/script>
+  </body></html>`);
+  win.document.close();
 }
 
 // ============================================================
