@@ -394,6 +394,7 @@
   .agd-pay-method { font-size:11px;color:var(--green);font-weight:600; }
 
   /* RELATÓRIOS */
+  .rel-fat-title { font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.05em;margin-bottom:14px;opacity:.7; }
   .active-preset { background:rgba(108,143,255,.15) !important; color:var(--accent) !important; border-color:rgba(108,143,255,.3) !important; }
   .rel-tab { font-family:var(--font); transition:color .15s; }
   .rel-tab:hover { color:var(--text) !important; }
@@ -772,7 +773,7 @@
     <!-- ABA: FATURAMENTO -->
     <div id="rel-faturamento" class="rel-section">
       <!-- KPIs de topo -->
-      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:20px;" id="rel-kpis">
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:36px;" id="rel-kpis">
         <div class="kpi green"><div class="kpi-icon">⬆</div><div class="kpi-label">Receita Total</div><div class="kpi-value" id="rel-income">—</div><div class="kpi-sub" id="rel-transactions">— transações</div></div>
         <div class="kpi orange"><div class="kpi-icon">📊</div><div class="kpi-label">Ticket Médio/dia</div><div class="kpi-value" id="rel-avg-day">—</div></div>
         <div class="kpi blue" style="grid-column:span 2;">
@@ -787,22 +788,22 @@
         </div>
       </div>
 
-      <div class="grid-2" style="margin-bottom:20px;">
+      <div class="grid-2" style="margin-bottom:36px;gap:28px;">
         <!-- Gráfico de barras por dia -->
-        <div class="card">
-          <div class="section-label">FATURAMENTO POR DIA</div>
+        <div style="padding:0;">
+          <div class="rel-fat-title">Faturamento por dia</div>
           <div id="rel-chart-day" style="max-height:200px;overflow:hidden;"></div>
         </div>
         <!-- Por forma de pagamento -->
-        <div class="card">
-          <div class="section-label">POR FORMA DE PAGAMENTO</div>
-          <div id="rel-chart-pay" style="min-height:160px;"></div>
+        <div style="padding:0;">
+          <div class="rel-fat-title">Por forma de pagamento</div>
+          <div id="rel-chart-pay"></div>
         </div>
       </div>
 
       <!-- Por categoria -->
-      <div class="card">
-        <div class="section-label">POR CATEGORIA</div>
+      <div style="padding:0;">
+        <div class="rel-fat-title">Por categoria</div>
         <div id="rel-table-cat"></div>
       </div>
     </div>
