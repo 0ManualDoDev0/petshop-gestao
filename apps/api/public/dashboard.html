@@ -367,9 +367,20 @@
   .agd-card { background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--border2);border-radius:var(--radius-lg);padding:16px 20px;display:flex;align-items:center;gap:20px;transition:all .15s;box-shadow:var(--shadow); }
   .agd-card:hover { transform:translateX(3px);border-color:var(--border2); }
   .agd-card--scheduled  { border-left-color:var(--yellow);background:linear-gradient(90deg,rgba(251,191,36,.05) 0%,var(--surface) 40%); }
-  .agd-card--in_progress{ border-left-color:var(--teal);background:linear-gradient(90deg,rgba(34,211,238,.05) 0%,var(--surface) 40%); }
-  .agd-card--completed  { border-left-color:var(--green);background:linear-gradient(90deg,rgba(52,211,153,.05) 0%,var(--surface) 40%); }
-  .agd-card--cancelled  { border-left-color:var(--red);background:linear-gradient(90deg,rgba(248,113,113,.05) 0%,var(--surface) 40%);opacity:.75; }
+  .agd-card--in_progress{ border-left-color:var(--teal);background:linear-gradient(90deg,rgba(34,211,238,.07) 0%,var(--surface) 40%);animation:agd-pulse 2s ease-in-out infinite; }
+  .agd-card--completed  { border-left-color:var(--green);background:linear-gradient(90deg,rgba(52,211,153,.05) 0%,var(--surface) 40%);opacity:.8; }
+  .agd-card--cancelled  { border-left-color:var(--red);background:linear-gradient(90deg,rgba(248,113,113,.05) 0%,var(--surface) 40%);opacity:.7; }
+  @keyframes agd-pulse {
+    0%,100% { box-shadow:var(--shadow); }
+    50%     { box-shadow:var(--shadow),-4px 0 18px rgba(34,211,238,.35); }
+  }
+  .agd-avatar { width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.2); }
+  .agd-avatar--banho        { background:linear-gradient(135deg,#22d3ee,#0ea5e9); }
+  .agd-avatar--tosa         { background:linear-gradient(135deg,#a78bfa,#8b5cf6); }
+  .agd-avatar--banho_e_tosa { background:linear-gradient(135deg,#6c8fff,#6c5ce7); }
+  .agd-avatar--hospedagem   { background:linear-gradient(135deg,#34d399,#059669); }
+  .agd-avatar--taxi_dog     { background:linear-gradient(135deg,#fb923c,#f59e0b); }
+  .agd-avatar--default      { background:linear-gradient(135deg,var(--accent),var(--accent2)); }
   .agd-time { display:flex;flex-direction:column;align-items:center;min-width:60px;flex-shrink:0; }
   .agd-time-val { font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent);line-height:1; }
   .agd-time-lbl { font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:3px; }
@@ -1713,6 +1724,7 @@ async function loadAgenda(date) {
             <span class="agd-time-val">${hora}</span>
             <span class="agd-time-lbl">horário</span>
           </div>
+          <div class="agd-avatar agd-avatar--${a.type || 'default'}">${(a.pet?.name || '?')[0].toUpperCase()}</div>
           <div class="agd-body">
             <div class="agd-pet">${a.pet?.name || '—'}${a.clientPackageId ? `<span class="badge-pacote" style="margin-left:6px;">📦 Pacote</span>` : ''}</div>
             <div class="agd-client">
