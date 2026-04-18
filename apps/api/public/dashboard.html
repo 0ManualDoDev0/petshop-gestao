@@ -13,7 +13,8 @@
     --text: #e8eaf0; --muted: #7c7f8e;
     --accent: #6c8fff; --accent2: #8b5cf6;
     --green: #34d399; --orange: #fb923c; --red: #f87171; --yellow: #fbbf24; --teal: #22d3ee;
-    --radius: 12px; --radius-lg: 16px;
+    --radius: 14px; --radius-lg: 18px;
+    --shadow: 0 4px 24px rgba(0,0,0,.3);
     --font: 'DM Sans', sans-serif; --mono: 'DM Mono', monospace;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -71,37 +72,36 @@
   .btn-danger:hover { background:rgba(248,113,113,.22); }
 
   /* CARDS */
-  .card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;transition:box-shadow .15s; }
+  .card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow);transition:box-shadow .15s; }
 
   /* KPI */
   .kpi-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px; }
-  .kpi { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s; }
-  .kpi:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3); }
-  .kpi::before { content:'';position:absolute;top:0;left:0;right:0;height:3px; }
-  .kpi.green { background:linear-gradient(135deg,var(--surface) 0%,rgba(52,211,153,.07) 100%);border-color:rgba(52,211,153,.15); }
-  .kpi.green::before { background:linear-gradient(90deg,var(--green),#059669); }
-  .kpi.blue { background:linear-gradient(135deg,var(--surface) 0%,rgba(108,143,255,.07) 100%);border-color:rgba(108,143,255,.15); }
-  .kpi.blue::before { background:linear-gradient(90deg,var(--accent),#4f46e5); }
-  .kpi.orange { background:linear-gradient(135deg,var(--surface) 0%,rgba(251,146,60,.07) 100%);border-color:rgba(251,146,60,.15); }
-  .kpi.orange::before { background:linear-gradient(90deg,var(--orange),#dc2626); }
-  .kpi.purple { background:linear-gradient(135deg,var(--surface) 0%,rgba(139,92,246,.07) 100%);border-color:rgba(139,92,246,.15); }
-  .kpi.purple::before { background:linear-gradient(90deg,var(--accent2),#7c3aed); }
-  .kpi-label { font-size:11px;color:var(--muted);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em; }
-  .kpi-value { font-size:30px;font-weight:700;line-height:1;letter-spacing:-.02em; }
-  .kpi-sub { font-size:12px;color:var(--muted);margin-top:8px; }
-  .kpi-icon { position:absolute;right:16px;top:18px;font-size:26px;opacity:.18; }
+  .kpi { border:1px solid transparent;border-radius:var(--radius-lg);padding:22px;position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s; }
+  .kpi:hover { transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.4); }
+  .kpi.green { background:linear-gradient(135deg,#00b894 0%,#00cec9 100%);border-color:rgba(0,184,148,.3); }
+  .kpi.blue { background:linear-gradient(135deg,#0984e3 0%,#6c5ce7 100%);border-color:rgba(9,132,227,.3); }
+  .kpi.orange { background:linear-gradient(135deg,#e17055 0%,#fdcb6e 100%);border-color:rgba(225,112,85,.3); }
+  .kpi.purple { background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);border-color:rgba(108,92,231,.3); }
+  .kpi-label { font-size:11px;color:rgba(255,255,255,.75);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em; }
+  .kpi-value { font-size:42px;font-weight:700;line-height:1;letter-spacing:-.03em;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.2); }
+  .kpi-sub { font-size:12px;color:rgba(255,255,255,.7);margin-top:8px; }
+  .kpi-icon { position:absolute;right:18px;top:18px;font-size:32px;opacity:.35; }
 
   /* AGENDA */
-  .apt-card { background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--border2);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s;margin-bottom:8px; }
-  .apt-card:hover { border-color:var(--border2);background:var(--surface3);transform:translateX(2px); }
-  .apt-card:has(.badge-completed) { border-left-color:var(--green);background:linear-gradient(90deg,rgba(52,211,153,.04) 0%,var(--surface2) 40%); }
-  .apt-card:has(.badge-in_progress) { border-left-color:var(--teal);background:linear-gradient(90deg,rgba(34,211,238,.04) 0%,var(--surface2) 40%); }
-  .apt-card:has(.badge-cancelled) { border-left-color:var(--red);background:linear-gradient(90deg,rgba(248,113,113,.04) 0%,var(--surface2) 40%); }
-  .apt-card:has(.badge-scheduled) { border-left-color:var(--yellow);background:linear-gradient(90deg,rgba(251,191,36,.04) 0%,var(--surface2) 40%); }
-  .apt-time { font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:500;min-width:48px; }
-  .apt-info { flex:1; }
-  .apt-pet { font-size:14px;font-weight:600; }
-  .apt-client { font-size:12px;color:var(--muted);margin-top:2px; }
+  .apt-card { background:var(--surface2);border:1px solid var(--border);border-left:4px solid var(--border2);border-radius:var(--radius);padding:14px 16px;display:flex;align-items:center;gap:16px;cursor:pointer;transition:all .15s;margin-bottom:8px; }
+  .apt-card:hover { border-color:var(--border2);background:var(--surface3);transform:translateX(3px); }
+  .apt-card:has(.badge-completed) { border-left-color:var(--green);background:linear-gradient(90deg,rgba(52,211,153,.06) 0%,var(--surface2) 50%); }
+  .apt-card:has(.badge-in_progress) { border-left-color:var(--teal);background:linear-gradient(90deg,rgba(34,211,238,.06) 0%,var(--surface2) 50%); }
+  .apt-card:has(.badge-cancelled) { border-left-color:var(--red);background:linear-gradient(90deg,rgba(248,113,113,.06) 0%,var(--surface2) 50%); }
+  .apt-card:has(.badge-scheduled) { border-left-color:var(--yellow);background:linear-gradient(90deg,rgba(251,191,36,.06) 0%,var(--surface2) 50%); }
+  .apt-time { font-family:var(--mono);font-size:15px;color:var(--accent);font-weight:700;min-width:52px;text-align:center;line-height:1; }
+  .apt-time-label { font-size:10px;color:var(--muted);font-weight:400;margin-top:3px;text-align:center;letter-spacing:.04em; }
+  .apt-info { flex:1;min-width:0; }
+  .apt-pet { font-size:16px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .apt-pet-meta { display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap; }
+  .apt-client-name { font-size:12px;color:var(--muted); }
+  .apt-value { font-size:15px;font-weight:700;color:var(--green);white-space:nowrap; }
+  .apt-actions { display:flex;flex-direction:column;align-items:flex-end;gap:6px; }
 
   /* BADGES */
   .badge { display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em; }
@@ -184,6 +184,9 @@
 
   ::-webkit-scrollbar { width:4px; }
   ::-webkit-scrollbar-thumb { background:var(--border2);border-radius:4px; }
+
+  /* SECTION LABELS */
+  .section-label { font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px; }
 
   /* RELATÓRIOS */
   .active-preset { background:rgba(108,143,255,.15) !important; color:var(--accent) !important; border-color:rgba(108,143,255,.3) !important; }
@@ -305,11 +308,11 @@
       </div>
       <div style="display:flex;flex-direction:column;gap:20px;">
         <div class="card" style="padding:16px;">
-          <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;">TIPOS DE SERVIÇO HOJE</div>
+          <div class="section-label">TIPOS DE SERVIÇO HOJE</div>
           <div id="tipos-hoje" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
         </div>
         <div class="card" style="padding:16px;">
-          <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;">HOTEL AGORA</div>
+          <div class="section-label">HOTEL AGORA</div>
           <div id="hotel-mini"></div>
         </div>
       </div>
@@ -317,11 +320,11 @@
 
     <div class="grid-2">
       <div class="card">
-        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px;">RESUMO FINANCEIRO DO DIA</div>
+        <div class="section-label">RESUMO FINANCEIRO DO DIA</div>
         <div id="financeiro-dia"><div class="loading"><div class="spinner"></div></div></div>
       </div>
       <div class="card">
-        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px;">PAGAMENTOS DO DIA</div>
+        <div class="section-label">PAGAMENTOS DO DIA</div>
         <div class="payment-grid" id="pagamentos-dia"><div style="font-size:12px;color:var(--muted);">Carregando...</div></div>
       </div>
     </div>
@@ -379,7 +382,7 @@
         <div class="kpi"><div class="kpi-icon">📋</div><div class="kpi-label">Diárias em Aberto</div><div class="kpi-value" id="hotel-diarias-abertas" style="color:var(--yellow)">-</div></div>
         <div class="kpi blue"><div class="kpi-icon">💰</div><div class="kpi-label">Faturamento do Mês</div><div class="kpi-value" id="hotel-mes-valor">-</div></div>
       </div>
-      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px;">HISTÓRICO DE CHECK-INS E CHECK-OUTS</div>
+      <div class="section-label">HISTÓRICO DE CHECK-INS E CHECK-OUTS</div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Pet</th><th>Cliente</th><th>Check-in</th><th>Check-out</th><th>Diárias</th><th>Total</th><th>Status</th><th></th></tr></thead>
@@ -426,7 +429,7 @@
 
     <!-- Pacotes Vendidos -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <div style="font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Pacotes Vendidos</div>
+      <div class="section-label">Pacotes Vendidos</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <input type="text" class="form-input" placeholder="Filtrar por cliente..." oninput="filtrarClientePacotes(this.value)" style="width:240px;padding:6px 10px;font-size:13px;">
         <select class="form-input" onchange="loadClientPackages(this.value)" style="width:140px;padding:6px 10px;font-size:13px;">
@@ -492,19 +495,19 @@
       <div class="grid-2" style="margin-bottom:20px;">
         <!-- Gráfico de barras por dia -->
         <div class="card">
-          <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px;">FATURAMENTO POR DIA</div>
+          <div class="section-label">FATURAMENTO POR DIA</div>
           <div id="rel-chart-day" style="min-height:160px;"></div>
         </div>
         <!-- Por forma de pagamento -->
         <div class="card">
-          <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px;">POR FORMA DE PAGAMENTO</div>
+          <div class="section-label">POR FORMA DE PAGAMENTO</div>
           <div id="rel-chart-pay" style="min-height:160px;"></div>
         </div>
       </div>
 
       <!-- Por categoria -->
       <div class="card">
-        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px;">POR CATEGORIA</div>
+        <div class="section-label">POR CATEGORIA</div>
         <div id="rel-table-cat"></div>
       </div>
     </div>
@@ -512,7 +515,7 @@
     <!-- ABA: FUNCIONÁRIOS -->
     <div id="rel-funcionarios" class="rel-section" style="display:none;">
       <div class="card">
-        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px;">PRODUÇÃO POR FUNCIONÁRIO</div>
+        <div class="section-label">PRODUÇÃO POR FUNCIONÁRIO</div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Funcionário</th><th>Atendimentos</th><th>Concluídos</th><th>Cancelados</th><th>Taxa Conclusão</th><th>Receita Gerada</th><th>Ticket Médio</th></tr></thead>
@@ -533,17 +536,17 @@
 
       <div class="grid-2" style="margin-bottom:20px;">
         <div class="card">
-          <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px;">POR TEMPLATE DE PACOTE</div>
+          <div class="section-label">POR TEMPLATE DE PACOTE</div>
           <div id="rel-pkg-by-template"></div>
         </div>
         <div class="card">
-          <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px;">STATUS DOS PACOTES VENDIDOS</div>
+          <div class="section-label">STATUS DOS PACOTES VENDIDOS</div>
           <div id="rel-pkg-status"></div>
         </div>
       </div>
 
       <div class="card">
-        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px;">VENDAS RECENTES</div>
+        <div class="section-label">VENDAS RECENTES</div>
         <div class="table-wrap">
           <table>
             <thead><tr><th>Cliente</th><th>Pacote</th><th>Sessões</th><th>Valor Pago</th><th>Vendido por</th><th>Data</th><th>Status</th></tr></thead>
@@ -1270,14 +1273,21 @@ async function loadDashboard() {
     } else {
       agendaEl.innerHTML = apts.map(a => `
         <div class="apt-card">
-          <div class="apt-time">${new Date(a.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
-          <div class="apt-info">
-            <div class="apt-pet">${a.pet?.name || '-'} <span style="font-size:11px;color:var(--muted)">(${a.pet?.breed || ''})</span></div>
-            <div class="apt-client">${a.client?.name || '-'} · <span class="svc-badge svc-${a.type}">${formatType(a.type)}</span></div>
+          <div style="text-align:center;flex-shrink:0;">
+            <div class="apt-time">${new Date(a.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</div>
+            <div class="apt-time-label">HORÁRIO</div>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <div class="apt-info">
+            <div class="apt-pet">${a.pet?.name || '-'}</div>
+            <div class="apt-pet-meta">
+              <span class="svc-badge svc-${a.type}">${formatType(a.type)}</span>
+              ${a.pet?.breed ? `<span class="apt-client-name">${a.pet.breed}</span>` : ''}
+              <span class="apt-client-name">· ${a.client?.name || '-'}</span>
+            </div>
+          </div>
+          <div class="apt-actions">
             <span class="badge badge-${a.status}">${formatStatus(a.status)}</span>
-            <span style="font-size:13px;font-weight:600;color:var(--green);">R$ ${Number(a.priceCharged).toFixed(2).replace('.', ',')}</span>
+            <span class="apt-value">R$ ${Number(a.priceCharged).toFixed(2).replace('.', ',')}</span>
           </div>
           ${a.status === 'scheduled' ? `<button class="btn btn-warning btn-sm" onclick="iniciarAtendimento('${a.id}')">▶</button>` : ''}
           ${a.status === 'in_progress' ? `<button class="btn btn-success btn-sm" onclick="abrirConcluir('${a.id}','${(a.pet?.name||'').replace(/'/g,'')}','${(a.client?.name||'').replace(/'/g,'')}',${a.priceCharged},'${a.clientPackageId||''}')">✓</button>` : ''}
@@ -1300,15 +1310,20 @@ async function loadDashboard() {
     if (kpis.hotel.stays?.length === 0) {
       hotelEl.innerHTML = '<div style="font-size:12px;color:var(--muted);">Nenhum pet hospedado</div>';
     } else {
-      hotelEl.innerHTML = (kpis.hotel.stays || []).slice(0, 3).map(h => `
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
-          <span style="font-size:18px;">🐕</span>
-          <div>
-            <div style="font-size:13px;font-weight:500;">${h.pet?.name || '-'}</div>
-            <div style="font-size:11px;color:var(--muted);">${h.pet?.client?.name || '-'}</div>
+      hotelEl.innerHTML = (kpis.hotel.stays || []).slice(0, 3).map(h => {
+        const petName = h.pet?.name || h.petName || h.name || '—';
+        const breed   = h.pet?.breed || h.breed || '';
+        const client  = h.pet?.client?.name || h.client?.name || h.clientName || '—';
+        return `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+          <span style="font-size:20px;flex-shrink:0;">🐕</span>
+          <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${petName}</div>
+            ${breed ? `<div style="font-size:12px;color:var(--muted);margin-top:1px;">${breed}</div>` : ''}
+            <div style="font-size:11px;color:var(--muted);margin-top:1px;">👤 ${client}</div>
           </div>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
     }
   }
 
@@ -2024,7 +2039,7 @@ async function loadRelFuncionarios(start, end) {
   // Gráfico de barras horizontais por receita
   document.getElementById('rel-emp-bars').innerHTML = `
     <div class="card">
-      <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:16px;">RECEITA POR FUNCIONÁRIO</div>
+      <div class="section-label">RECEITA POR FUNCIONÁRIO</div>
       ${data.map(e => `
         <div style="margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
