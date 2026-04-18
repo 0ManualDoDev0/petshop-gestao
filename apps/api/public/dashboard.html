@@ -1438,7 +1438,7 @@
 
 <script>
 const API = 'https://petshop-gestao-production.up.railway.app/api/v1';
-const AI_API_KEY = ''; // Chave Anthropic — preencher para ativar Relatório IA
+const AI_API_KEY = ''; // não usado — chamada feita via proxy /ai/financial-report
 let TOKEN = localStorage.getItem('petshop_token');
 let currentUser = null;
 let currentAptId = null;
@@ -2277,11 +2277,6 @@ async function salvarCliente() {
 // RELATÓRIO IA
 // ============================================================
 async function gerarRelatorioIA() {
-  if (!AI_API_KEY) {
-    showToast('⚠️ Configure AI_API_KEY no código para usar esta função.', 'error');
-    return;
-  }
-
   const mes  = parseInt(document.getElementById('ia-mes').value);
   const ano  = parseInt(document.getElementById('ia-ano').value);
   const start = `${ano}-${String(mes).padStart(2,'0')}-01`;
@@ -2347,24 +2342,15 @@ Seja específico com os números. Use linguagem profissional mas acessível.`;
   btn.innerHTML = '<span style="animation:spin .6s linear infinite;display:inline-block;">↻</span> Gerando...';
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch(API + '/ai/financial-report', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': AI_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: dadosFormatados }]
-      })
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
+      body: JSON.stringify({ prompt: dadosFormatados })
     });
 
-    if (!res.ok) throw new Error(`API error ${res.status}`);
+    if (!res.ok) throw new Error(`Erro ${res.status}`);
     const json = await res.json();
-    const analise = json.content?.[0]?.text || '';
+    const analise = json.analysis || '';
 
     abrirPDFRelatorioIA(mesNome, totals, byPaymentMethod, byCategory, analise, employees || []);
     closeModal('modal-relatorio-ia');

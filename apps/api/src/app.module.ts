@@ -13,6 +13,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { HotelModule } from './modules/hotel/hotel.module';
 import { PackagesModule } from './modules/packages/packages.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     HotelModule,
     PackagesModule,
     ReportsModule,
+    AiModule,
   ],
 })
 export class AppModule {}
