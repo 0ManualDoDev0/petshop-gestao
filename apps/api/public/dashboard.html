@@ -85,6 +85,15 @@
   .kpi:hover { transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.4); }
   .kpi.green { background:linear-gradient(135deg,#00b894 0%,#00cec9 100%);border-color:rgba(0,184,148,.3); }
   .kpi.blue { background:linear-gradient(135deg,#0984e3 0%,#6c5ce7 100%);border-color:rgba(9,132,227,.3); }
+  .kpi-saldo { background:var(--surface2);border-color:var(--border);transition:background .35s,border-color .35s; }
+  .kpi-saldo .kpi-label { color:var(--muted); }
+  .kpi-saldo .kpi-value { text-shadow:none;transition:color .35s; }
+  .kpi-saldo .kpi-icon  { opacity:.18; }
+  .kpi-saldo.kpi--pos { background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.3); }
+  .kpi-saldo.kpi--pos .kpi-value { color:var(--green); }
+  .kpi-saldo.kpi--neg { background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.3); }
+  .kpi-saldo.kpi--neg .kpi-value { color:var(--red); }
+  .kpi-saldo.kpi--zero .kpi-value { color:var(--muted); }
   .kpi.orange { background:linear-gradient(135deg,#e17055 0%,#fdcb6e 100%);border-color:rgba(225,112,85,.3); }
   .kpi.purple { background:linear-gradient(135deg,#6c5ce7 0%,#a29bfe 100%);border-color:rgba(108,92,231,.3); }
   .kpi-label { font-size:11px;color:rgba(255,255,255,.75);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em; }
@@ -733,7 +742,7 @@
     <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);">
       <div class="kpi green"><div class="kpi-icon">⬆️</div><div class="kpi-label">Entradas</div><div class="kpi-value" id="fin-entradas">-</div></div>
       <div class="kpi"><div class="kpi-icon">⬇️</div><div class="kpi-label">Saídas</div><div class="kpi-value" id="fin-saidas" style="color:var(--red)">-</div></div>
-      <div class="kpi blue"><div class="kpi-icon">💎</div><div class="kpi-label">Saldo</div><div class="kpi-value" id="fin-saldo">-</div></div>
+      <div class="kpi kpi-saldo"><div class="kpi-icon">💎</div><div class="kpi-label">Saldo</div><div class="kpi-value" id="fin-saldo">-</div></div>
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
@@ -2140,7 +2149,7 @@ async function loadFinPeriodo(start, end) {
   const expense = entries.filter(e => e.type !== 'income').reduce((s, e) => s + Number(e.amount), 0);
   document.getElementById('fin-entradas').textContent = 'R$ ' + income.toFixed(2).replace('.', ',');
   document.getElementById('fin-saidas').textContent   = 'R$ ' + expense.toFixed(2).replace('.', ',');
-  document.getElementById('fin-saldo').textContent    = 'R$ ' + (income - expense).toFixed(2).replace('.', ',');
+  setSaldo(income - expense);
   renderLancamentos(entries, PAY_NAMES);
 }
 
@@ -2149,10 +2158,18 @@ async function loadFinanceiro() {
   if (!close) return;
   document.getElementById('fin-entradas').textContent = 'R$ ' + (close.income || 0).toFixed(2).replace('.', ',');
   document.getElementById('fin-saidas').textContent = 'R$ ' + (close.expense || 0).toFixed(2).replace('.', ',');
-  document.getElementById('fin-saldo').textContent = 'R$ ' + ((close.income || 0) - (close.expense || 0)).toFixed(2).replace('.', ',');
+  setSaldo((close.income || 0) - (close.expense || 0));
   const entries = close.entries || [];
   const payNames = { pix: 'PIX', cash: 'Dinheiro', credit_card: 'Crédito', debit_card: 'Débito', transfer: 'Transferência' };
   renderLancamentos(entries, payNames);
+}
+
+function setSaldo(val) {
+  const el = document.getElementById('fin-saldo');
+  el.textContent = 'R$ ' + val.toFixed(2).replace('.', ',');
+  const card = el.closest('.kpi');
+  card.classList.remove('kpi--pos','kpi--neg','kpi--zero');
+  card.classList.add(val > 0 ? 'kpi--pos' : val < 0 ? 'kpi--neg' : 'kpi--zero');
 }
 
 async function salvarLancamento() {
