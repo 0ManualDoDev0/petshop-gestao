@@ -216,6 +216,9 @@
   .loading { display:flex;align-items:center;justify-content:center;padding:40px;color:var(--muted);font-size:14px;gap:8px; }
   .spinner { width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
+  .refresh-icon { display:inline-block;font-style:normal;transition:transform .3s; }
+  .btn-refresh.spinning .refresh-icon { animation:spin .6s linear infinite; }
+  .last-update { font-size:11px;color:var(--muted);align-self:center;white-space:nowrap;opacity:.8; }
 
   .empty { text-align:center;padding:40px;color:var(--muted); }
   .empty-icon { font-size:32px;margin-bottom:10px; }
@@ -477,9 +480,10 @@
         <div class="page-title">Dashboard</div>
         <div class="page-subtitle" id="hoje-label">Carregando...</div>
       </div>
-      <div style="display:flex;gap:10px;">
-        <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">↻ Atualizar</button>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalAgendar()">+ Novo Agendamento</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="last-update" id="last-update-time"></span>
+        <button class="btn btn-ghost btn-sm btn-refresh" id="btn-refresh" onclick="triggerRefresh()"><span class="refresh-icon">↻</span> Atualizar</button>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalAgendar()" style="background:linear-gradient(135deg,#0984e3,#6c5ce7);box-shadow:0 4px 14px rgba(108,92,231,.3);gap:6px;">＋ Novo Agendamento</button>
       </div>
     </div>
 
@@ -1456,6 +1460,15 @@ function showPage(name) {
 // ============================================================
 // DASHBOARD
 // ============================================================
+async function triggerRefresh() {
+  const btn = document.getElementById('btn-refresh');
+  btn?.classList.add('spinning');
+  await loadDashboard();
+  btn?.classList.remove('spinning');
+  const lbl = document.getElementById('last-update-time');
+  if (lbl) lbl.textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
 async function loadDashboard() {
   const today = new Date();
   document.getElementById('hoje-label').textContent = today.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
