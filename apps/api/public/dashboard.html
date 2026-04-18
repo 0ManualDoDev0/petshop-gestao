@@ -54,13 +54,18 @@
 
   /* HEADER */
   .page-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:28px; }
-  .page-title { font-size:22px;font-weight:600; }
-  .page-subtitle { font-size:13px;color:var(--muted);margin-top:2px; }
+  .page-title { font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1; }
+  .page-subtitle { font-size:13px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:8px; }
+  .page-subtitle-date { background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:3px 10px;font-size:12px;font-weight:500;color:var(--text); }
+
+  /* DATE INPUT */
+  input[type="date"].form-input { color-scheme:dark;cursor:pointer; }
+  input[type="date"].form-input::-webkit-calendar-picker-indicator { filter:invert(.6);cursor:pointer; }
 
   /* BUTTONS */
   .btn { display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:var(--font); }
-  .btn-primary { background:var(--accent);color:#fff; }
-  .btn-primary:hover { background:#5a7aef; }
+  .btn-primary { background:linear-gradient(135deg,#0984e3,#6c5ce7);color:#fff;box-shadow:0 4px 14px rgba(108,92,231,.35); }
+  .btn-primary:hover { background:linear-gradient(135deg,#0773c5,#5a4bd1);box-shadow:0 6px 20px rgba(108,92,231,.5);transform:translateY(-1px); }
   .btn-ghost { background:transparent;color:var(--muted);border:1px solid var(--border2); }
   .btn-ghost:hover { background:var(--surface2);color:var(--text); }
   .btn-sm { padding:5px 11px;font-size:12px; }
@@ -170,6 +175,12 @@
 
   .empty { text-align:center;padding:40px;color:var(--muted); }
   .empty-icon { font-size:32px;margin-bottom:10px; }
+  .empty-agenda { display:flex;flex-direction:column;align-items:center;justify-content:center;padding:64px 24px;text-align:center; }
+  .empty-agenda-icon { font-size:64px;margin-bottom:20px;opacity:.6;filter:drop-shadow(0 4px 12px rgba(108,143,255,.25)); }
+  .empty-agenda-title { font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px; }
+  .empty-agenda-sub { font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.6;max-width:320px; }
+  .empty-agenda-btn { display:inline-flex;align-items:center;gap:8px;padding:10px 22px;border-radius:10px;background:linear-gradient(135deg,#0984e3,#6c5ce7);color:#fff;font-size:14px;font-weight:600;cursor:pointer;border:none;font-family:var(--font);box-shadow:0 4px 14px rgba(108,92,231,.35);transition:all .15s; }
+  .empty-agenda-btn:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(108,92,231,.5); }
 
   /* TOAST */
   .toast { position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:14px 18px;font-size:13px;z-index:1000;transform:translateY(80px);opacity:0;transition:all .25s;max-width:320px; }
@@ -187,6 +198,48 @@
 
   /* SECTION LABELS */
   .section-label { font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px; }
+
+  /* AGENDA FILTER BAR */
+  .agd-filter-bar { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap; }
+  .agd-filter-pills { display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+  .agd-pill { display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface2);color:var(--muted);transition:all .15s;font-family:var(--font); }
+  .agd-pill:hover { color:var(--text);border-color:var(--border2);background:var(--surface3); }
+  .agd-pill-dot { width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0; }
+  .agd-pill--all.active         { background:rgba(255,255,255,.08);color:var(--text);border-color:rgba(255,255,255,.2); }
+  .agd-pill--scheduled.active   { background:rgba(251,191,36,.15);color:var(--yellow);border-color:rgba(251,191,36,.35); }
+  .agd-pill--in_progress.active { background:rgba(34,211,238,.15);color:var(--teal);border-color:rgba(34,211,238,.35); }
+  .agd-pill--completed.active   { background:rgba(52,211,153,.15);color:var(--green);border-color:rgba(52,211,153,.35); }
+  .agd-pill--cancelled.active   { background:rgba(248,113,113,.15);color:var(--red);border-color:rgba(248,113,113,.35); }
+  .agd-pill--scheduled .agd-pill-dot   { background:var(--yellow); }
+  .agd-pill--in_progress .agd-pill-dot { background:var(--teal); }
+  .agd-pill--completed .agd-pill-dot   { background:var(--green); }
+  .agd-pill--cancelled .agd-pill-dot   { background:var(--red); }
+  .agd-search-wrap { position:relative;flex-shrink:0; }
+  .agd-search-icon { position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none; }
+  .agd-search { background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 14px 8px 34px;font-size:13px;color:var(--text);font-family:var(--font);outline:none;width:220px;transition:border .15s; }
+  .agd-search:focus { border-color:var(--accent); }
+  .agd-search::placeholder { color:var(--muted); }
+
+  /* AGENDA CARDS */
+  .agenda-cards { display:flex;flex-direction:column;gap:10px; }
+  .agd-card { background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--border2);border-radius:var(--radius-lg);padding:16px 20px;display:flex;align-items:center;gap:20px;transition:all .15s;box-shadow:var(--shadow); }
+  .agd-card:hover { transform:translateX(3px);border-color:var(--border2); }
+  .agd-card--scheduled  { border-left-color:var(--yellow);background:linear-gradient(90deg,rgba(251,191,36,.05) 0%,var(--surface) 40%); }
+  .agd-card--in_progress{ border-left-color:var(--teal);background:linear-gradient(90deg,rgba(34,211,238,.05) 0%,var(--surface) 40%); }
+  .agd-card--completed  { border-left-color:var(--green);background:linear-gradient(90deg,rgba(52,211,153,.05) 0%,var(--surface) 40%); }
+  .agd-card--cancelled  { border-left-color:var(--red);background:linear-gradient(90deg,rgba(248,113,113,.05) 0%,var(--surface) 40%);opacity:.75; }
+  .agd-time { display:flex;flex-direction:column;align-items:center;min-width:60px;flex-shrink:0; }
+  .agd-time-val { font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent);line-height:1; }
+  .agd-time-lbl { font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:3px; }
+  .agd-body { flex:1;min-width:0; }
+  .agd-pet { font-size:16px;font-weight:700;color:var(--text);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .agd-client { display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);margin-top:4px; }
+  .agd-meta { display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap; }
+  .agd-emp { display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted); }
+  .agd-right { display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex-shrink:0; }
+  .agd-value { font-size:18px;font-weight:700;color:var(--green);white-space:nowrap; }
+  .agd-actions { display:flex;align-items:center;gap:4px; }
+  .agd-pay-method { font-size:11px;color:var(--green);font-weight:600; }
 
   /* RELATÓRIOS */
   .active-preset { background:rgba(108,143,255,.15) !important; color:var(--accent) !important; border-color:rgba(108,143,255,.3) !important; }
@@ -349,20 +402,46 @@
   <!-- AGENDA -->
   <div id="page-agenda" class="page">
     <div class="page-header">
-      <div><div class="page-title">Agenda</div><div class="page-subtitle">Agendamentos do dia <span id="agenda-counter" style="display:none;background:var(--accent);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin-left:6px;vertical-align:middle;"></span></div></div>
-      <div style="display:flex;gap:10px;">
+      <div>
+        <div class="page-title">Agenda</div>
+        <div class="page-subtitle">
+          <span class="page-subtitle-date" id="agenda-date-label">Hoje</span>
+          <span>Agendamentos do dia</span>
+          <span id="agenda-counter" style="display:none;background:linear-gradient(135deg,#0984e3,#6c5ce7);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;"></span>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
         <input type="date" class="form-input" id="agenda-date" style="width:160px;" onchange="loadAgenda(this.value)">
-        <button class="btn btn-primary" onclick="abrirModalAgendar()">+ Agendar</button>
+        <button class="btn btn-primary" onclick="abrirModalAgendar()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Agendar
+        </button>
       </div>
     </div>
-    <div class="card">
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Horário</th><th>Pet / Cliente</th><th>Serviço</th><th>Funcionário</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
-          <tbody id="agenda-table"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">Carregando...</td></tr></tbody>
-        </table>
+    <!-- FILTROS -->
+    <div class="agd-filter-bar">
+      <div class="agd-filter-pills">
+        <button class="agd-pill agd-pill--all active" onclick="filtrarAgenda('all')">Todos</button>
+        <button class="agd-pill agd-pill--scheduled"  onclick="filtrarAgenda('scheduled')">
+          <span class="agd-pill-dot"></span>Agendado
+        </button>
+        <button class="agd-pill agd-pill--in_progress" onclick="filtrarAgenda('in_progress')">
+          <span class="agd-pill-dot"></span>Em andamento
+        </button>
+        <button class="agd-pill agd-pill--completed"  onclick="filtrarAgenda('completed')">
+          <span class="agd-pill-dot"></span>Concluído
+        </button>
+        <button class="agd-pill agd-pill--cancelled"  onclick="filtrarAgenda('cancelled')">
+          <span class="agd-pill-dot"></span>Cancelado
+        </button>
+      </div>
+      <div class="agd-search-wrap">
+        <svg class="agd-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" class="agd-search" placeholder="Buscar pet ou cliente..." oninput="filtrarAgenda(agdFiltroAtivo, this.value)">
       </div>
     </div>
+
+    <div id="agenda-table"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
   </div>
 
   <!-- HOTEL -->
@@ -1451,6 +1530,11 @@ async function loadAgenda(date) {
     date = input.value || new Date().toISOString().split('T')[0];
     if (!input.value) input.value = date;
   }
+  const labelEl = document.getElementById('agenda-date-label');
+  if (labelEl) {
+    const today = new Date().toISOString().split('T')[0];
+    labelEl.textContent = date === today ? 'Hoje' : new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+  }
   const apts = await get('/appointments?date=' + date);
   if (!apts) return;
   const counter = document.getElementById('agenda-counter');
@@ -1461,24 +1545,71 @@ async function loadAgenda(date) {
     counter.style.display = 'none';
   }
   document.getElementById('agenda-table').innerHTML = apts.length === 0
-    ? '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">Nenhum agendamento</td></tr>'
-    : apts.map(a => `
-      <tr>
-        <td style="font-family:var(--mono);color:var(--accent);">${new Date(a.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</td>
-        <td><div style="font-weight:500;">${a.pet?.name || '-'}</div><div style="font-size:11px;color:var(--muted);">${a.client?.name || '-'}</div></td>
-        <td><span class="svc-badge svc-${a.type}">${formatType(a.type)}</span>${a.clientPackageId ? `<span class="badge-pacote">📦 Pacote</span>` : ''}</td>
-        <td style="font-size:13px;">${a.employee?.name || '-'}</td>
-        <td style="font-weight:600;color:var(--green);">R$ ${Number(a.priceCharged).toFixed(2).replace('.', ',')}</td>
-        <td><span class="badge badge-${a.status}">${formatStatus(a.status)}</span></td>
-        <td>
-          ${a.status === 'scheduled' ? `<button class="btn btn-warning btn-sm" onclick="iniciarAtendimento('${a.id}')">▶ Iniciar</button>` : ''}
-          ${a.status === 'in_progress' ? `<button class="btn btn-success btn-sm" onclick="abrirConcluir('${a.id}','${(a.pet?.name||'').replace(/'/g,'')}','${(a.client?.name||'').replace(/'/g,'')}',${a.priceCharged},'${a.clientPackageId||''}')">✓ Concluir</button>` : ''}
-          ${a.status === 'completed' ? `<span style="font-size:11px;color:var(--green);">✓ ${(a.paymentMethod||'').toUpperCase()}</span>` : ''}
-          <button class="btn btn-ghost btn-sm" style="margin-left:4px;" onclick="abrirEditarAgendamento('${a.id}','${(a.pet?.name||'').replace(/'/g,'')}','${(a.client?.name||'').replace(/'/g,'')}','${a.serviceId||''}','${a.employeeId||''}','${a.scheduledAt}',${a.priceCharged})">✏️</button>
-          ${a.status !== 'completed' && a.status !== 'in_progress' ? `<button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="excluirAgendamento('${a.id}')">🗑 Excluir</button>` : `<button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="excluirAgendamento('${a.id}')">🗑</button>`}
-        </td>
-      </tr>
-    `).join('');
+    ? `<div class="empty-agenda">
+        <div class="empty-agenda-icon">📅</div>
+        <div class="empty-agenda-title">Nenhum agendamento para este dia</div>
+        <div class="empty-agenda-sub">Que tal aproveitar e já marcar o próximo cliente?</div>
+        <button class="empty-agenda-btn" onclick="abrirModalAgendar()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Novo Agendamento
+        </button>
+      </div>`
+    : `<div class="agenda-cards">${apts.map(a => {
+        const hora = new Date(a.scheduledAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const petName = (a.pet?.name||'').replace(/'/g,'');
+        const cliName = (a.client?.name||'').replace(/'/g,'');
+        return `
+        <div class="agd-card agd-card--${a.status}">
+          <div class="agd-time">
+            <span class="agd-time-val">${hora}</span>
+            <span class="agd-time-lbl">horário</span>
+          </div>
+          <div class="agd-body">
+            <div class="agd-pet">${a.pet?.name || '—'}${a.clientPackageId ? `<span class="badge-pacote" style="margin-left:6px;">📦 Pacote</span>` : ''}</div>
+            <div class="agd-client">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              ${a.client?.name || '—'}
+            </div>
+            <div class="agd-meta">
+              <span class="svc-badge svc-${a.type}">${formatType(a.type)}</span>
+              ${a.employee?.name ? `<span class="agd-emp">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                ${a.employee.name}
+              </span>` : ''}
+            </div>
+          </div>
+          <div class="agd-right">
+            <span class="badge badge-${a.status}">${formatStatus(a.status)}</span>
+            <span class="agd-value">R$ ${Number(a.priceCharged).toFixed(2).replace('.', ',')}</span>
+            <div class="agd-actions">
+              ${a.status === 'scheduled' ? `<button class="btn btn-warning btn-sm" title="Iniciar" onclick="iniciarAtendimento('${a.id}')">▶</button>` : ''}
+              ${a.status === 'in_progress' ? `<button class="btn btn-success btn-sm" title="Concluir" onclick="abrirConcluir('${a.id}','${petName}','${cliName}',${a.priceCharged},'${a.clientPackageId||''}')">✓</button>` : ''}
+              ${a.status === 'completed' ? `<span class="agd-pay-method">✓ ${(a.paymentMethod||'').toUpperCase()}</span>` : ''}
+              <button class="btn btn-ghost btn-sm" title="Editar" onclick="abrirEditarAgendamento('${a.id}','${petName}','${cliName}','${a.serviceId||''}','${a.employeeId||''}','${a.scheduledAt}',${a.priceCharged})">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="btn btn-danger btn-sm" title="Excluir" onclick="excluirAgendamento('${a.id}')">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>`; }).join('')}</div>`;
+  filtrarAgenda(agdFiltroAtivo, document.querySelector('.agd-search')?.value || '');
+}
+
+let agdFiltroAtivo = 'all';
+function filtrarAgenda(status, q = '') {
+  agdFiltroAtivo = status || 'all';
+  document.querySelectorAll('.agd-pill').forEach(p => p.classList.remove('active'));
+  const activeBtn = document.querySelector(`.agd-pill--${agdFiltroAtivo}`);
+  if (activeBtn) activeBtn.classList.add('active');
+  const term = (q || '').toLowerCase();
+  document.querySelectorAll('.agd-card').forEach(card => {
+    const matchStatus = agdFiltroAtivo === 'all' || card.classList.contains('agd-card--' + agdFiltroAtivo);
+    const text = card.textContent.toLowerCase();
+    const matchSearch = !term || text.includes(term);
+    card.style.display = matchStatus && matchSearch ? '' : 'none';
+  });
 }
 
 // ============================================================
