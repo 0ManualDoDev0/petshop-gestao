@@ -88,6 +88,7 @@
   .kpi:hover { transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.4); }
   .kpi.green { background:linear-gradient(135deg,#00b894 0%,#00cec9 100%);border-color:rgba(0,184,148,.3); }
   .kpi.blue { background:linear-gradient(135deg,#0984e3 0%,#6c5ce7 100%);border-color:rgba(9,132,227,.3); }
+  .kpi.kpi-lucro { background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border-color:rgba(0,184,148,.25);border-top:3px solid #00b894; }
   .kpi-saldo { background:var(--surface2);border-color:var(--border);transition:background .35s,border-color .35s; }
   .kpi-saldo .kpi-label { color:var(--muted); }
   .kpi-saldo .kpi-value { text-shadow:none;transition:color .35s; }
@@ -776,14 +777,15 @@
       <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:36px;" id="rel-kpis">
         <div class="kpi green"><div class="kpi-icon">⬆</div><div class="kpi-label">Receita Total</div><div class="kpi-value" id="rel-income">—</div><div class="kpi-sub" id="rel-transactions">— transações</div></div>
         <div class="kpi orange"><div class="kpi-icon">📊</div><div class="kpi-label">Ticket Médio/dia</div><div class="kpi-value" id="rel-avg-day">—</div></div>
-        <div class="kpi blue" style="grid-column:span 2;">
+        <div class="kpi kpi-lucro" style="grid-column:span 2;">
           <div class="kpi-icon">💎</div>
-          <div class="kpi-label">Lucro</div>
-          <div class="kpi-value" id="rel-profit">—</div>
-          <div class="kpi-sub" id="rel-margin">margem —%</div>
-          <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15);display:inline-flex;align-items:center;gap:8px;">
-            <span style="font-size:12px;opacity:.65;font-weight:500;">Despesas:</span>
-            <span style="font-size:17px;font-weight:700;" id="rel-expense">—</span>
+          <div class="kpi-label" style="color:rgba(255,255,255,.45);">Lucro Líquido</div>
+          <div class="kpi-value" id="rel-profit" style="color:#00b894;">—</div>
+          <div class="kpi-sub" id="rel-margin" style="color:rgba(255,255,255,.4);">margem —%</div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px;">
+            <span style="font-size:12px;color:rgba(255,255,255,.4);font-weight:500;flex-shrink:0;">Despesas totais</span>
+            <span style="font-size:13px;color:#ff6b6b;flex-shrink:0;">↓</span>
+            <span style="font-size:18px;font-weight:700;color:#ff6b6b;" id="rel-expense">—</span>
           </div>
         </div>
       </div>
