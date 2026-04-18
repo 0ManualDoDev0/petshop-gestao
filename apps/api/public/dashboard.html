@@ -397,6 +397,30 @@
   .active-preset { background:rgba(108,143,255,.15) !important; color:var(--accent) !important; border-color:rgba(108,143,255,.3) !important; }
   .rel-tab { font-family:var(--font); transition:color .15s; }
   .rel-tab:hover { color:var(--text) !important; }
+  .rel-emp-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;margin-bottom:8px; }
+  .rel-emp-card { background:var(--surface);border:1px solid var(--border);border-left:5px solid;border-radius:var(--radius-lg);padding:20px 22px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow);transition:all .2s ease; }
+  .rel-emp-card:hover { transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.35); }
+  .rel-emp-header { display:flex;align-items:center;gap:14px; }
+  .rel-emp-avatar { width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(0,0,0,.25); }
+  .rel-emp-name { font-size:18px;font-weight:700;color:var(--text);line-height:1.2; }
+  .rel-emp-sub  { font-size:12px;color:var(--muted);margin-top:2px; }
+  .rel-emp-metrics { display:grid;grid-template-columns:repeat(3,1fr);gap:8px; }
+  .rel-emp-metric { background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px; }
+  .rel-emp-metric-lbl { font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;font-weight:600; }
+  .rel-emp-metric-val { font-size:22px;font-weight:800;line-height:1; }
+  .rel-emp-metric-val--green { color:var(--green); }
+  .rel-emp-metric-val--red   { color:var(--red); }
+  .rel-emp-metric-val--muted { color:var(--muted);font-size:16px; }
+  .rel-emp-taxa { display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700; }
+  .rel-emp-taxa--green  { background:rgba(52,211,153,.15);color:var(--green); }
+  .rel-emp-taxa--yellow { background:rgba(251,191,36,.15);color:var(--yellow); }
+  .rel-emp-taxa--red    { background:rgba(248,113,113,.15);color:var(--red); }
+  .rel-emp-revenue-row  { display:flex;align-items:baseline;gap:10px;flex-wrap:wrap; }
+  .rel-emp-revenue      { font-size:26px;font-weight:800;color:var(--accent); }
+  .rel-emp-ticket       { font-size:13px;color:var(--muted); }
+  .rel-emp-bar-wrap { background:var(--surface3);border-radius:6px;height:8px;overflow:hidden; }
+  .rel-emp-bar-fill { height:100%;border-radius:6px;transition:width .5s ease; }
+  @media(max-width:680px){ .rel-emp-grid{grid-template-columns:1fr;} .rel-emp-metrics{grid-template-columns:repeat(2,1fr);} }
 
   /* ── SCROLLBAR ───────────────────────────────────────────── */
   ::-webkit-scrollbar        { width:6px;height:6px; }
@@ -777,16 +801,11 @@
 
     <!-- ABA: FUNCIONÁRIOS -->
     <div id="rel-funcionarios" class="rel-section" style="display:none;">
-      <div class="card">
-        <div class="section-label">PRODUÇÃO POR FUNCIONÁRIO</div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Funcionário</th><th>Atendimentos</th><th>Concluídos</th><th>Cancelados</th><th>Taxa Conclusão</th><th>Receita Gerada</th><th>Ticket Médio</th></tr></thead>
-            <tbody id="rel-table-emp"><tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">Gere o relatório para ver os dados</td></tr></tbody>
-          </table>
-        </div>
+      <div class="section-label" style="margin-bottom:16px;">PRODUÇÃO POR FUNCIONÁRIO</div>
+      <div id="rel-table-emp" class="rel-emp-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted);">Gere o relatório para ver os dados</div>
       </div>
-      <div id="rel-emp-bars" style="margin-top:20px;"></div>
+      <div id="rel-emp-bars"></div>
     </div>
 
     <!-- ABA: PACOTES -->
@@ -2446,54 +2465,77 @@ async function loadRelFuncionarios(start, end) {
   if (!data) return;
 
   if (data.length === 0) {
-    document.getElementById('rel-table-emp').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted);">Sem atendimentos no período</td></tr>';
+    document.getElementById('rel-table-emp').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--muted);"><div style="font-size:36px;margin-bottom:12px;">📊</div><div>Sem atendimentos no período</div></div>';
     document.getElementById('rel-emp-bars').innerHTML = '';
     return;
   }
 
   const maxRevenue = Math.max(...data.map(e => e.revenue)) || 1;
+  const EMP_COLORS = {
+    vanessa: { border:'#a78bfa', bg:'linear-gradient(135deg,#a78bfa,#8b5cf6)' },
+    pedro:   { border:'var(--accent)', bg:'linear-gradient(135deg,#6c8fff,#6c5ce7)' },
+    luisa:   { border:'var(--green)', bg:'linear-gradient(135deg,#34d399,#059669)' },
+    luísa:   { border:'var(--green)', bg:'linear-gradient(135deg,#34d399,#059669)' },
+  };
+  const FALLBACK_COLORS = [
+    { border:'#6c8fff', bg:'linear-gradient(135deg,#6c8fff,#6c5ce7)' },
+    { border:'#34d399', bg:'linear-gradient(135deg,#34d399,#059669)' },
+    { border:'#f59e0b', bg:'linear-gradient(135deg,#fbbf24,#f59e0b)' },
+    { border:'#f87171', bg:'linear-gradient(135deg,#f87171,#ef4444)' },
+  ];
 
-  document.getElementById('rel-table-emp').innerHTML = data.map((e, i) => `
-    <tr>
-      <td style="font-weight:500;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;">
-            ${e.employee.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
+  document.getElementById('rel-table-emp').innerHTML = data.map((e, i) => {
+    const key = e.employee.name.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const clr = EMP_COLORS[key] || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+    const initials = e.employee.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+    const taxaClass = e.completionRate >= 80 ? 'rel-emp-taxa--green' : e.completionRate >= 50 ? 'rel-emp-taxa--yellow' : 'rel-emp-taxa--red';
+    const pct = (e.revenue / maxRevenue * 100).toFixed(1);
+    return `
+      <div class="rel-emp-card" style="border-left-color:${clr.border};">
+        <div class="rel-emp-header">
+          <div class="rel-emp-avatar" style="background:${clr.bg};">${initials}</div>
+          <div>
+            <div class="rel-emp-name">${e.employee.name}</div>
+            <div class="rel-emp-sub">${e.total} atendimento${e.total!==1?'s':''} no período</div>
           </div>
-          ${e.employee.name}
         </div>
-      </td>
-      <td style="font-family:var(--mono);font-size:13px;text-align:center;">${e.total}</td>
-      <td style="font-family:var(--mono);font-size:13px;text-align:center;color:var(--green);font-weight:600;">${e.completed}</td>
-      <td style="font-family:var(--mono);font-size:13px;text-align:center;color:var(--red);">${e.cancelled}</td>
-      <td style="text-align:center;">
-        <span style="padding:3px 8px;border-radius:20px;font-size:12px;font-weight:500;background:${e.completionRate>=80?'rgba(52,211,153,.12)':e.completionRate>=50?'rgba(251,191,36,.1)':'rgba(248,113,113,.1)'};color:${e.completionRate>=80?'var(--green)':e.completionRate>=50?'var(--yellow)':'var(--red)'};">
-          ${e.completionRate}%
-        </span>
-      </td>
-      <td style="font-weight:700;color:var(--green);">R$ ${e.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-      <td style="color:var(--muted);font-size:13px;">R$ ${e.avgTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-    </tr>
-  `).join('');
+        <div class="rel-emp-metrics">
+          <div class="rel-emp-metric">
+            <div class="rel-emp-metric-lbl">Atendimentos</div>
+            <div class="rel-emp-metric-val">${e.total}</div>
+          </div>
+          <div class="rel-emp-metric">
+            <div class="rel-emp-metric-lbl">Concluídos</div>
+            <div class="rel-emp-metric-val rel-emp-metric-val--green">${e.completed}</div>
+          </div>
+          <div class="rel-emp-metric">
+            <div class="rel-emp-metric-lbl">Cancelados</div>
+            <div class="rel-emp-metric-val rel-emp-metric-val--red">${e.cancelled}</div>
+          </div>
+          <div class="rel-emp-metric" style="grid-column:span 3;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div class="rel-emp-metric-lbl">Taxa de Conclusão</div>
+              <span class="rel-emp-taxa ${taxaClass}">${e.completionRate}%</span>
+            </div>
+            <div style="text-align:right;">
+              <div class="rel-emp-metric-lbl">Ticket Médio</div>
+              <div class="rel-emp-metric-val rel-emp-metric-val--muted">R$ ${e.avgTicket.toLocaleString('pt-BR',{minimumFractionDigits:2})}</div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="rel-emp-revenue-row">
+            <span class="rel-emp-revenue">R$ ${e.revenue.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+            <span class="rel-emp-ticket">receita gerada · ${pct}% do total</span>
+          </div>
+          <div class="rel-emp-bar-wrap" style="margin-top:8px;">
+            <div class="rel-emp-bar-fill" style="width:${pct}%;background:${clr.bg};"></div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
 
-  // Gráfico de barras horizontais por receita
-  document.getElementById('rel-emp-bars').innerHTML = `
-    <div class="card">
-      <div class="section-label">RECEITA POR FUNCIONÁRIO</div>
-      ${data.map(e => `
-        <div style="margin-bottom:14px;">
-          <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-            <span style="font-size:13px;font-weight:500;">${e.employee.name}</span>
-            <span style="font-size:13px;font-weight:700;color:var(--green);">R$ ${e.revenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-          </div>
-          <div style="background:var(--surface3);border-radius:6px;height:10px;overflow:hidden;">
-            <div style="background:linear-gradient(90deg,var(--accent),var(--accent2));height:100%;width:${(e.revenue/maxRevenue*100).toFixed(1)}%;border-radius:6px;transition:width .4s;"></div>
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:3px;">${e.completed} atendimentos concluídos · ticket médio R$ ${e.avgTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+  document.getElementById('rel-emp-bars').innerHTML = '';
 }
 
 // ── Pacotes ──────────────────────────────────────────────────
