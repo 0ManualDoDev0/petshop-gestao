@@ -279,6 +279,42 @@
   .btn-checkout { background:transparent;color:var(--red);border:1px solid var(--red);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s;display:inline-flex;align-items:center;gap:6px; }
   .btn-checkout:hover { background:rgba(248,113,113,.12);box-shadow:0 0 0 3px rgba(248,113,113,.15); }
 
+  /* PACOTES VENDIDOS CARDS */
+  .pkg-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px; }
+  .pkg-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow);transition:all .15s; }
+  .pkg-card:hover { border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.35); }
+  .pkg-card-top { display:flex;align-items:flex-start;gap:14px; }
+  .pkg-avatar { width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(108,143,255,.25); }
+  .pkg-info { flex:1;min-width:0; }
+  .pkg-client-name { font-size:15px;font-weight:700;color:var(--text);line-height:1.2; }
+  .pkg-client-phone { font-size:12px;color:var(--muted);margin-top:2px; }
+  .pkg-name-badge { display:inline-flex;align-items:center;gap:5px;background:rgba(108,143,255,.12);color:var(--accent);border:1px solid rgba(108,143,255,.2);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;margin-top:6px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+  .pkg-status-badge { flex-shrink:0;align-self:flex-start; }
+  .pkg-progress-wrap { display:flex;flex-direction:column;gap:4px; }
+  .pkg-progress-bar { background:var(--surface3);border-radius:4px;height:7px;overflow:hidden; }
+  .pkg-progress-fill { height:100%;border-radius:4px;transition:width .4s; }
+  .pkg-progress-fill--done { background:var(--green); }
+  .pkg-progress-fill--active { background:var(--accent); }
+  .pkg-progress-meta { display:flex;justify-content:space-between;font-size:11px; }
+  .pkg-sessions { font-weight:600;color:var(--text); }
+  .pkg-remaining { color:var(--muted); }
+  .pkg-footer { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px; }
+  .pkg-meta-row { display:flex;align-items:center;gap:14px;flex-wrap:wrap; }
+  .pkg-expiry { font-size:12px;font-weight:600; }
+  .pkg-expiry--expired { color:var(--red); }
+  .pkg-expiry--soon    { color:var(--yellow); }
+  .pkg-expiry--ok      { color:var(--green); }
+  .pkg-amount { font-size:16px;font-weight:700;color:var(--green); }
+  .pkg-actions { display:flex;gap:5px;flex-wrap:wrap;align-items:center; }
+  .pkg-btn { display:inline-flex;align-items:center;gap:4px;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s;border:none; }
+  .pkg-btn-paid    { background:var(--green);color:#fff; }
+  .pkg-btn-pending { background:#b45309;color:#fff; }
+  .pkg-btn-session { background:rgba(108,143,255,.15);color:var(--accent);border:1px solid rgba(108,143,255,.25); }
+  .pkg-btn-edit    { background:var(--surface3);color:var(--text);border:1px solid var(--border); }
+  .pkg-btn-delete  { background:rgba(248,113,113,.12);color:var(--red);border:1px solid rgba(248,113,113,.2); }
+  .pkg-btn:hover   { opacity:.85;transform:translateY(-1px); }
+  @media(max-width:640px){ .pkg-grid{grid-template-columns:1fr;} .pkg-footer{flex-direction:column;align-items:flex-start;} }
+
   /* AGENDA CARDS */
   .agenda-cards { display:flex;flex-direction:column;gap:10px; }
   .agd-card { background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--border2);border-radius:var(--radius-lg);padding:16px 20px;display:flex;align-items:center;gap:20px;transition:all .15s;box-shadow:var(--shadow); }
@@ -575,14 +611,7 @@
         </select>
       </div>
     </div>
-    <div class="card">
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Cliente</th><th>Pacote</th><th>Sessões</th><th>Progresso</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead>
-          <tbody id="client-packages-table"><tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted);">Carregando...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
+    <div id="client-packages-table"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
   </div>
 
   <!-- RELATÓRIOS -->
@@ -2538,42 +2567,59 @@ async function loadClientPackages(status = '') {
 function renderClientPackages(list) {
   const tbody = document.getElementById('client-packages-table');
   if (!list || list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted);">Nenhum pacote vendido</td></tr>';
+    tbody.innerHTML = '<div style="text-align:center;padding:48px 20px;color:var(--muted);"><div style="font-size:40px;margin-bottom:12px;">📦</div><div style="font-size:15px;">Nenhum pacote vendido</div></div>';
     return;
   }
   const statusLabels = { active: 'Ativo', expired: 'Expirado', completed: 'Concluído', cancelled: 'Cancelado' };
   const statusBadge = { active: 'badge-in_progress', expired: 'badge-cancelled', completed: 'badge-completed', cancelled: 'badge-cancelled' };
-  tbody.innerHTML = list.map(cp => {
+  const now = new Date();
+  tbody.innerHTML = '<div class="pkg-grid">' + list.map(cp => {
     const used = cp.sessionsUsed;
     const total = cp.sessionsTotal;
     const pct = Math.round((used / total) * 100);
     const expDate = new Date(cp.expiresAt);
-    const expired = expDate < new Date();
+    const daysLeft = Math.ceil((expDate - now) / 86400000);
+    const expClass = daysLeft < 0 ? 'pkg-expiry--expired' : daysLeft <= 7 ? 'pkg-expiry--soon' : 'pkg-expiry--ok';
+    const expLabel = daysLeft < 0 ? `Vencido ${expDate.toLocaleDateString('pt-BR')}` : `Vence ${expDate.toLocaleDateString('pt-BR')}`;
+    const initial = (cp.client?.name || '?')[0].toUpperCase();
+    const name = (cp.client?.name || '').replace(/'/g, '');
+    const pkgName = (cp.package?.name || '').replace(/'/g, '');
+    const notes = (cp.notes || '').replace(/'/g, '').replace(/\n/g, ' ');
     return `
-      <tr>
-        <td style="font-weight:500;">${cp.client?.name || '-'}<div style="font-size:11px;color:var(--muted);">${cp.client?.phone || ''}</div></td>
-        <td>${cp.package?.name || '-'}</td>
-        <td style="font-family:var(--mono);font-size:13px;"><span style="color:var(--accent);font-weight:600;">${used}</span>/<span style="color:var(--muted);">${total}</span></td>
-        <td style="min-width:100px;">
-          <div style="background:var(--surface3);border-radius:4px;height:6px;overflow:hidden;">
-            <div style="background:${pct>=100?'var(--green)':'var(--accent)'};height:100%;width:${pct}%;transition:width .3s;"></div>
+      <div class="pkg-card">
+        <div class="pkg-card-top">
+          <div class="pkg-avatar">${initial}</div>
+          <div class="pkg-info">
+            <div class="pkg-client-name">${cp.client?.name || '-'}</div>
+            <div class="pkg-client-phone">${cp.client?.phone || ''}</div>
+            <div class="pkg-name-badge">📦 ${cp.package?.name || '-'}</div>
           </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:3px;">${total - used} restantes</div>
-        </td>
-        <td style="font-size:12px;color:${expired?'var(--red)':'var(--muted)'};">${expDate.toLocaleDateString('pt-BR')}</td>
-        <td style="font-weight:600;color:var(--green);">R$ ${Number(cp.amountPaid).toFixed(2).replace('.', ',')}</td>
-        <td><span class="badge ${statusBadge[cp.status] || 'badge-scheduled'}">${statusLabels[cp.status] || cp.status}</span></td>
-        <td style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">
-          ${cp.isPaid
-            ? `<button class="btn btn-sm" style="background:var(--green);color:#fff;font-size:11px;padding:3px 8px;" title="Clique para estornar" onclick="desmarcarPago('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}')">✓ Recebido</button>`
-            : `<button class="btn btn-sm" style="background:#b45309;color:#fff;font-size:11px;padding:3px 8px;" title="Clique para registrar pagamento" onclick="abrirMarcarPago('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${cp.amountPaid})">⏳ Pendente</button>`}
-          ${cp.status === 'active' && used < total ? `<button class="btn btn-warning btn-sm" onclick="abrirUsarSessao('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${used},${total})">✂️ Sessão</button>` : ''}
-          <button class="btn btn-ghost btn-sm" style="padding:3px 7px;" title="Editar" onclick="abrirEditarClientePacote('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}','${(cp.package?.name||'').replace(/'/g,'')}',${cp.amountPaid},'${new Date(cp.expiresAt).toISOString().split('T')[0]}','${cp.status}','${(cp.notes||'').replace(/'/g,'').replace(/\n/g,' ')}')">✏️</button>
-          <button class="btn btn-sm" style="background:var(--red);color:#fff;padding:3px 7px;" title="Excluir" onclick="excluirClientePacote('${cp.id}','${(cp.client?.name||'').replace(/'/g,'')}')">🗑</button>
-        </td>
-      </tr>
+          <div class="pkg-status-badge"><span class="badge ${statusBadge[cp.status] || 'badge-scheduled'}">${statusLabels[cp.status] || cp.status}</span></div>
+        </div>
+        <div class="pkg-progress-wrap">
+          <div class="pkg-progress-bar"><div class="pkg-progress-fill ${pct>=100?'pkg-progress-fill--done':'pkg-progress-fill--active'}" style="width:${Math.min(pct,100)}%"></div></div>
+          <div class="pkg-progress-meta">
+            <span class="pkg-sessions">${used} / ${total} sessões</span>
+            <span class="pkg-remaining">${total - used} restantes</span>
+          </div>
+        </div>
+        <div class="pkg-footer">
+          <div class="pkg-meta-row">
+            <span class="pkg-expiry ${expClass}">📅 ${expLabel}</span>
+            <span class="pkg-amount">R$ ${Number(cp.amountPaid).toFixed(2).replace('.', ',')}</span>
+          </div>
+          <div class="pkg-actions">
+            ${cp.isPaid
+              ? `<button class="pkg-btn pkg-btn-paid" title="Clique para estornar" onclick="desmarcarPago('${cp.id}','${name}')">✓ Recebido</button>`
+              : `<button class="pkg-btn pkg-btn-pending" title="Registrar pagamento" onclick="abrirMarcarPago('${cp.id}','${name}','${pkgName}',${cp.amountPaid})">⏳ Pendente</button>`}
+            ${cp.status === 'active' && used < total ? `<button class="pkg-btn pkg-btn-session" onclick="abrirUsarSessao('${cp.id}','${name}','${pkgName}',${used},${total})">✂️ Sessão</button>` : ''}
+            <button class="pkg-btn pkg-btn-edit" title="Editar" onclick="abrirEditarClientePacote('${cp.id}','${name}','${pkgName}',${cp.amountPaid},'${new Date(cp.expiresAt).toISOString().split('T')[0]}','${cp.status}','${notes}')">✏️</button>
+            <button class="pkg-btn pkg-btn-delete" title="Excluir" onclick="excluirClientePacote('${cp.id}','${name}')">🗑</button>
+          </div>
+        </div>
+      </div>
     `;
-  }).join('');
+  }).join('') + '</div>';
 }
 
 function filtrarClientePacotes(q) {
