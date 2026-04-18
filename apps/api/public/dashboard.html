@@ -772,11 +772,19 @@
     <!-- ABA: FATURAMENTO -->
     <div id="rel-faturamento" class="rel-section">
       <!-- KPIs de topo -->
-      <div class="kpi-grid" style="margin-bottom:20px;" id="rel-kpis">
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:20px;" id="rel-kpis">
         <div class="kpi green"><div class="kpi-icon">⬆</div><div class="kpi-label">Receita Total</div><div class="kpi-value" id="rel-income">—</div><div class="kpi-sub" id="rel-transactions">— transações</div></div>
-        <div class="kpi"><div class="kpi-icon">⬇</div><div class="kpi-label">Despesas</div><div class="kpi-value" id="rel-expense" style="color:var(--red)">—</div></div>
-        <div class="kpi blue"><div class="kpi-icon">💎</div><div class="kpi-label">Lucro</div><div class="kpi-value" id="rel-profit">—</div><div class="kpi-sub" id="rel-margin">margem —%</div></div>
         <div class="kpi orange"><div class="kpi-icon">📊</div><div class="kpi-label">Ticket Médio/dia</div><div class="kpi-value" id="rel-avg-day">—</div></div>
+        <div class="kpi blue" style="grid-column:span 2;">
+          <div class="kpi-icon">💎</div>
+          <div class="kpi-label">Lucro</div>
+          <div class="kpi-value" id="rel-profit">—</div>
+          <div class="kpi-sub" id="rel-margin">margem —%</div>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.15);display:inline-flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;opacity:.65;font-weight:500;">Despesas:</span>
+            <span style="font-size:17px;font-weight:700;" id="rel-expense">—</span>
+          </div>
+        </div>
       </div>
 
       <div class="grid-2" style="margin-bottom:20px;">
