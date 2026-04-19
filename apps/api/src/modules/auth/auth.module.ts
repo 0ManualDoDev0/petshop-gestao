@@ -10,10 +10,11 @@ import { LocalStrategy } from './strategies/local.strategy';
   imports: [
     PassportModule,
     JwtModule.registerAsync({
-      useFactory: () => ({
-        secret: process.env.JWT_SECRET || 'petshop-dev-secret',
-        signOptions: { expiresIn: '15m' },
-      }),
+      useFactory: () => {
+        const secret = process.env.JWT_SECRET;
+        if (!secret) throw new Error('JWT_SECRET environment variable is not set');
+        return { secret, signOptions: { expiresIn: '15m' } };
+      },
     }),
   ],
   controllers: [AuthController],

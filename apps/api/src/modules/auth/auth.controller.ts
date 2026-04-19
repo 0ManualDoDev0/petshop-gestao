@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, Request, HttpCode, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 
 @ApiTags('Auth')
@@ -9,6 +10,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Login com email e senha' })
   async login(@Body() body: { email: string; password: string }) {
@@ -17,6 +19,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Renovar access token' })
   async refresh(@Body() body: { refreshToken: string }) {

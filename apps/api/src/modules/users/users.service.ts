@@ -28,7 +28,16 @@ export class UsersService {
   }
 
   async update(id: string, data: any) {
-    return this.prisma.user.update({ where: { id }, data });
+    const { role, passwordHash, isActive, ...safe } = data;
+    const payload: any = { ...safe };
+    if (data.password) {
+      payload.passwordHash = await bcrypt.hash(data.password, 12);
+    }
+    return this.prisma.user.update({
+      where: { id },
+      data: payload,
+      select: { id: true, name: true, email: true, role: true, phone: true },
+    });
   }
 
   async toggleActive(id: string) {

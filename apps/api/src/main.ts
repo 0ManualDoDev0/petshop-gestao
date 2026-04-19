@@ -4,11 +4,15 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const publicPath = join(process.cwd(), 'public');
   app.useStaticAssets(publicPath);
+
+  // Segurança de headers HTTP
+  app.use(helmet());
 
   // CORS — permitir web app e mobile
   app.enableCors({
@@ -32,21 +36,25 @@ async function bootstrap() {
   // Prefixo global da API
   app.setGlobalPrefix('api/v1');
 
-  // Swagger — documentação automática
-  const config = new DocumentBuilder()
-    .setTitle('🐾 PetShop Gestão API')
-    .setDescription('API completa para gestão de petshop com banho, tosa, hotel e táxi dog')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('docs', app, document);
+  // Swagger — apenas em desenvolvimento
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('🐾 PetShop Gestão API')
+      .setDescription('API completa para gestão de petshop com banho, tosa, hotel e táxi dog')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('docs', app, document);
+  }
 
   const port = parseInt(process.env.PORT || '3000', 10);
   await app.listen(port);
 
   console.log(`\n🐾 PetShop API rodando na porta: ${port}`);
-  console.log(`📋 Documentação: http://localhost:${port}/docs`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`📋 Documentação: http://localhost:${port}/docs`);
+  }
 }
 
 bootstrap();
