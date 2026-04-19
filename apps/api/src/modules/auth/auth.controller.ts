@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
+import { LoginDto } from './dto/login.dto';
+import { RefreshDto } from './dto/refresh.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -13,7 +15,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Login com email e senha' })
-  async login(@Body() body: { email: string; password: string }) {
+  async login(@Body() body: LoginDto) {
     const user = await this.authService.validateUser(body.email, body.password);
     return this.authService.login(user);
   }
@@ -22,7 +24,7 @@ export class AuthController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(200)
   @ApiOperation({ summary: 'Renovar access token' })
-  async refresh(@Body() body: { refreshToken: string }) {
+  async refresh(@Body() body: RefreshDto) {
     return this.authService.refresh(body.refreshToken);
   }
 

@@ -4,6 +4,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../../common/roles.decorator';
 import { RolesGuard } from '../../common/roles.guard';
 import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('Usuários')
 @ApiBearerAuth()
@@ -23,11 +25,11 @@ export class UsersController {
 
   @Post()
   @Roles('admin')
-  create(@Body() body: any) { return this.service.create(body); }
+  create(@Body() body: CreateUserDto) { return this.service.create(body); }
 
   @Put(':id')
   @Roles('admin')
-  update(@Param('id') id: string, @Body() body: any) { return this.service.update(id, body); }
+  update(@Param('id') id: string, @Body() body: UpdateUserDto) { return this.service.update(id, body); }
 
   @Patch(':id/toggle-active')
   @Roles('admin')
