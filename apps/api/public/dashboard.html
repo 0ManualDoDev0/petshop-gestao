@@ -261,6 +261,7 @@
   .agd-pill--in_progress .agd-pill-dot { background:var(--teal); }
   .agd-pill--completed .agd-pill-dot   { background:var(--green); }
   .agd-pill--cancelled .agd-pill-dot   { background:var(--red); }
+  .agd-pill-count { opacity:.65;font-weight:500; }
   .agd-search-wrap { position:relative;flex-shrink:0; }
   .agd-search-icon { position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none; }
   .agd-search { background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:8px 14px 8px 34px;font-size:13px;color:var(--text);font-family:var(--font);outline:none;width:220px;transition:border .2s ease; }
@@ -623,18 +624,18 @@
     <!-- FILTROS -->
     <div class="agd-filter-bar">
       <div class="agd-filter-pills">
-        <button class="agd-pill agd-pill--all active" onclick="filtrarAgenda('all')">Todos</button>
+        <button class="agd-pill agd-pill--all active" onclick="filtrarAgenda('all')">Todos <span id="agd-count-all" class="agd-pill-count"></span></button>
         <button class="agd-pill agd-pill--scheduled"  onclick="filtrarAgenda('scheduled')">
-          <span class="agd-pill-dot"></span>Agendado
+          <span class="agd-pill-dot"></span>Agendado <span id="agd-count-scheduled" class="agd-pill-count"></span>
         </button>
         <button class="agd-pill agd-pill--in_progress" onclick="filtrarAgenda('in_progress')">
-          <span class="agd-pill-dot"></span>Em andamento
+          <span class="agd-pill-dot"></span>Em andamento <span id="agd-count-in_progress" class="agd-pill-count"></span>
         </button>
         <button class="agd-pill agd-pill--completed"  onclick="filtrarAgenda('completed')">
-          <span class="agd-pill-dot"></span>Concluído
+          <span class="agd-pill-dot"></span>Concluído <span id="agd-count-completed" class="agd-pill-count"></span>
         </button>
         <button class="agd-pill agd-pill--cancelled"  onclick="filtrarAgenda('cancelled')">
-          <span class="agd-pill-dot"></span>Cancelado
+          <span class="agd-pill-dot"></span>Cancelado <span id="agd-count-cancelled" class="agd-pill-count"></span>
         </button>
       </div>
       <div class="agd-search-wrap">
@@ -1866,6 +1867,16 @@ async function loadAgenda(date) {
           </div>
         </div>`; }).join('')}</div>`;
   filtrarAgenda(agdFiltroAtivo, document.querySelector('.agd-search')?.value || '');
+  atualizarContagensAgenda(apts);
+}
+
+function atualizarContagensAgenda(apts) {
+  const counts = { all: apts.length };
+  apts.forEach(a => { counts[a.status] = (counts[a.status] || 0) + 1; });
+  ['all', 'scheduled', 'in_progress', 'completed', 'cancelled'].forEach(s => {
+    const el = document.getElementById('agd-count-' + s);
+    if (el) el.textContent = counts[s] ? '(' + counts[s] + ')' : '';
+  });
 }
 
 let agdFiltroAtivo = 'all';
