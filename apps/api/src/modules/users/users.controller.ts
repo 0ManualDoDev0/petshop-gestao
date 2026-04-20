@@ -15,23 +15,23 @@ export class UsersController {
   constructor(private readonly service: UsersService) {}
 
   @Get()
-  @Roles('admin')
+  @Roles('owner', 'manager')
   @ApiOperation({ summary: 'Listar funcionários' })
   findAll() { return this.service.findAll(); }
 
   @Get(':id')
-  @Roles('admin')
+  @Roles('owner', 'manager')
   findOne(@Param('id') id: string) { return this.service.findOne(id); }
 
   @Post()
-  @Roles('admin')
+  @Roles('owner')
   create(@Body() body: CreateUserDto) { return this.service.create(body); }
 
   @Put(':id')
-  @Roles('admin')
+  @Roles('owner')
   update(@Param('id') id: string, @Body() body: UpdateUserDto) { return this.service.update(id, body); }
 
   @Patch(':id/toggle-active')
-  @Roles('admin')
+  @Roles('owner')
   toggleActive(@Param('id') id: string) { return this.service.toggleActive(id); }
 }
