@@ -1450,6 +1450,7 @@ let selectedPetId = null;
 async function get(path) {
   const r = await fetch(API + path, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
   if (r.status === 401) { logout(); return null; }
+  if (!r.ok) return null;
   return r.json();
 }
 
@@ -3446,9 +3447,12 @@ function onServicoChange(sel) {
 
 async function loadFuncionariosForm() {
   const users = await get('/users');
-  if (users) {
-    document.getElementById('ag-funcionario').innerHTML = '<option value="">Selecione...</option>' +
+  const sel = document.getElementById('ag-funcionario');
+  if (Array.isArray(users)) {
+    sel.innerHTML = '<option value="">Selecione...</option>' +
       users.filter(u => u.isActive).map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+  } else {
+    sel.innerHTML = '<option value="">— sem funcionário —</option>';
   }
 }
 
