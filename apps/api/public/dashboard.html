@@ -491,8 +491,9 @@
     max-width:82%;padding:9px 13px;border-radius:14px;
     font-size:13px;line-height:1.5;word-break:break-word;
   }
-  .chat-msg--ia  .chat-bubble { background:var(--surface2);color:var(--text);border-bottom-left-radius:4px; }
-  .chat-msg--user .chat-bubble { background:var(--accent);color:#fff;border-bottom-right-radius:4px; }
+  .chat-msg--ia    .chat-bubble { background:var(--surface2);color:var(--text);border-bottom-left-radius:4px; }
+  .chat-msg--user  .chat-bubble { background:var(--accent);color:#fff;border-bottom-right-radius:4px; }
+  .chat-msg--alert .chat-bubble { background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.3);color:#fb923c;border-bottom-left-radius:4px; }
   .chat-loading { display:flex;align-items:center;gap:5px;padding:12px 16px; }
   .chat-loading span {
     width:7px;height:7px;border-radius:50%;background:var(--muted);
@@ -3684,17 +3685,21 @@ const dtInput = document.getElementById('ag-datetime');
 if (dtInput) dtInput.value = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
 // ============================================================
-// CHATBOT IA FLUTUANTE
+// CHATBOT IA FLUTUANTE — v2
 // ============================================================
 let chatbotOpen = false;
 let chatbotIniciado = false;
+let chatbotPendingAction = null;
+let chatContextCache = null; // { ts, empData, revData30, revCurrWeek, revPrevWeek }
+
+// ── UI helpers ───────────────────────────────────────────────
 
 function toggleChatbot() {
   chatbotOpen = !chatbotOpen;
   document.getElementById('chatbot-box').classList.toggle('open', chatbotOpen);
   if (chatbotOpen && !chatbotIniciado) {
     chatbotIniciado = true;
-    adicionarMensagemChat('ia', 'Olá Carlos! 👋 Sou seu assistente. Posso responder sobre agendamentos, hotel, faturamento e muito mais. Como posso ajudar?');
+    iniciarChatbot();
   }
   if (chatbotOpen) setTimeout(() => document.getElementById('chatbot-input').focus(), 220);
 }
@@ -3726,6 +3731,173 @@ function removerLoadingChat() {
   if (el) el.remove();
 }
 
+// ── Inicialização ────────────────────────────────────────────
+
+async function iniciarChatbot() {
+  mostrarLoadingChat();
+  const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const [aptsHoje, aptsAmanha, hotelAtivo] = await Promise.all([
+    get('/appointments?date=' + today).catch(() => null),
+    get('/appointments?date=' + tomorrow).catch(() => null),
+    get('/hotel/active').catch(() => null),
+  ]);
+  removerLoadingChat();
+  // Feature 2: alertas proativos antes da boas-vindas
+  gerarAlertas(aptsHoje, aptsAmanha, hotelAtivo, today).forEach(a => adicionarMensagemChat('alert', a));
+  adicionarMensagemChat('ia', 'Olá Carlos! 👋 Sou seu assistente. Posso responder sobre agendamentos, hotel, faturamento e muito mais. Como posso ajudar?');
+  // Feature 1+4: carrega memória/padrões em background sem bloquear
+  carregarContextoNegocio();
+}
+
+// ── Feature 2: alertas proativos ────────────────────────────
+
+function gerarAlertas(aptsHoje, aptsAmanha, hotelAtivo, today) {
+  const alertas = [];
+  if (Array.isArray(aptsAmanha) && aptsAmanha.length > 6)
+    alertas.push('⚠️ Dia cheio amanhã! ' + aptsAmanha.length + ' agendamentos previstos. Considere avisar a equipe.');
+  if (Array.isArray(hotelAtivo)) {
+    const todayMs = new Date(today).getTime();
+    hotelAtivo.forEach(h => {
+      const dias = Math.floor((todayMs - new Date(h.checkIn).getTime()) / 86400000);
+      if (dias >= 7 && !h.isPaid) {
+        const nome = h.pet?.name || h.client?.name || 'Pet';
+        alertas.push('🏨 ' + nome + ' está no hotel há ' + dias + ' dias sem pagamento registrado.');
+      }
+    });
+  }
+  if (Array.isArray(aptsHoje)) {
+    const semFunc = aptsHoje.filter(a => !a.employeeId && a.status === 'scheduled').length;
+    if (semFunc > 0)
+      alertas.push('👤 Hoje há ' + semFunc + ' agendamento' + (semFunc > 1 ? 's' : '') + ' sem funcionário atribuído.');
+  }
+  return alertas;
+}
+
+// ── Feature 1+4: memória do negócio e padrões ───────────────
+
+async function carregarContextoNegocio() {
+  const agora = Date.now();
+  if (chatContextCache && (agora - chatContextCache.ts) < 300000) return;
+  const hoje = new Date();
+  const mesInicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+  const today = hoje.toISOString().split('T')[0];
+  const dia30 = new Date(agora - 30 * 86400000).toISOString().split('T')[0];
+  const semAtualInicio = new Date(agora - 7 * 86400000).toISOString().split('T')[0];
+  const semPassadaInicio = new Date(agora - 14 * 86400000).toISOString().split('T')[0];
+  const semPassadaFim = new Date(agora - 8 * 86400000).toISOString().split('T')[0];
+  const [empData, revData30, revSemAtual, revSemPassada] = await Promise.all([
+    get('/reports/employees?start=' + mesInicio + '&end=' + today).catch(() => null),
+    get('/reports/revenue?start=' + dia30 + '&end=' + today).catch(() => null),
+    get('/reports/revenue?start=' + semAtualInicio + '&end=' + today).catch(() => null),
+    get('/reports/revenue?start=' + semPassadaInicio + '&end=' + semPassadaFim).catch(() => null),
+  ]);
+  chatContextCache = { ts: agora, empData, revData30, revSemAtual, revSemPassada };
+}
+
+function gerarTextoContextoNegocio() {
+  if (!chatContextCache) return '';
+  const { empData, revData30, revSemAtual, revSemPassada } = chatContextCache;
+  const linhas = [];
+  if (Array.isArray(empData) && empData.length > 0) {
+    const top = [...empData].sort((a, b) => (b.completed || 0) - (a.completed || 0))[0];
+    linhas.push('Funcionário destaque do mês: ' + top.employee.name + ' (' + (top.completed || 0) + ' concluídos, R$' + Number(top.revenue || 0).toFixed(2) + ')');
+    const tickets = empData.map(e => e.employee.name + ': R$' + Number(e.avgTicket || 0).toFixed(2)).join(', ');
+    linhas.push('Ticket médio por funcionário: ' + tickets);
+  }
+  if (revData30?.byDay?.length > 0) {
+    const DIAS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const porDia = {};
+    const contDia = {};
+    revData30.byDay.forEach(d => {
+      const wd = new Date(d.date + 'T12:00:00').getDay();
+      porDia[wd] = (porDia[wd] || 0) + (d.income || 0);
+      contDia[wd] = (contDia[wd] || 0) + 1;
+    });
+    const topDia = Object.entries(porDia).sort((a, b) => b[1] - a[1])[0];
+    if (topDia) linhas.push('Dia mais lucrativo da semana (30d): ' + DIAS[topDia[0]] + ' (média R$' + (topDia[1] / (contDia[topDia[0]] || 1)).toFixed(2) + ')');
+  }
+  if (revData30?.byCategory?.length > 0) {
+    const top = [...revData30.byCategory].sort((a, b) => (b.income || 0) - (a.income || 0))[0];
+    if (top) linhas.push('Serviço mais lucrativo (30d): ' + top.category + ' (R$' + Number(top.income || 0).toFixed(2) + ')');
+  }
+  if (revSemAtual?.totals && revSemPassada?.totals) {
+    const curr = revSemAtual.totals.income || 0;
+    const prev = revSemPassada.totals.income || 0;
+    const diff = prev > 0 ? (((curr - prev) / prev) * 100).toFixed(1) : null;
+    linhas.push('Comparativo semanal: esta semana R$' + curr.toFixed(2) + ' vs semana passada R$' + prev.toFixed(2) + (diff ? ' (' + (diff > 0 ? '+' : '') + diff + '%)' : '') + (curr >= prev ? ' 📈' : ' 📉'));
+  }
+  return linhas.length > 0 ? '\nINSIGHTS DO NEGÓCIO (últimos 30 dias):\n' + linhas.join('\n') : '';
+}
+
+// ── Feature 3: detecção de intenção e execução de ações ─────
+
+function detectarIntencao(texto) {
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const t = norm(texto);
+  // Intenção: check-out
+  if (/check.?out|dar checkout|fazer checkout/.test(t)) {
+    const m = texto.match(/(?:check.?out|checkout)\s+(?:de\s+|do\s+|da\s+|para\s+)?([A-ZÀ-Úa-zà-ú][a-zà-úA-ZÀ-Ú\s]+?)(?:\s*$|\?|\.)/i);
+    if (m) return { tipo: 'checkout', petNome: m[1].trim() };
+  }
+  // Intenção: agendamento
+  if (/\b(agendar|marcar|criar agendamento|novo agendamento)\b/.test(t)) {
+    const svc = t.includes('banho e tosa') ? 'banho_tosa' : t.includes('tosa') ? 'tosa' :
+                t.includes('consulta') || t.includes('veterinari') ? 'consulta' : 'banho';
+    const petM = texto.match(/para\s+([A-ZÀ-Úa-zà-ú][a-zà-úA-ZÀ-Ú]+)/i);
+    const empM = texto.match(/com\s+([A-ZÀ-Úa-zà-ú][a-zà-úA-ZÀ-Ú]+)/i);
+    const timeM = texto.match(/(\d{1,2})h(?::?(\d{2}))?/);
+    const hojeDt = new Date().toISOString().split('T')[0];
+    const amanhaDt = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const data = (t.includes('amanha') || t.includes('amanha')) ? amanhaDt : t.includes('hoje') ? hojeDt : null;
+    if (petM && timeM && data) {
+      const h = timeM[1].padStart(2, '0'), m2 = timeM[2] || '00';
+      return { tipo: 'agendamento', petNome: petM[1], funcionarioNome: empM?.[1] || null, servico: svc, data, hora: h + ':' + m2, scheduledAt: data + 'T' + h + ':' + m2 + ':00' };
+    }
+  }
+  return null;
+}
+
+async function executarCheckout(petNome) {
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const hotel = await get('/hotel/active').catch(() => null);
+  if (!hotel) return { ok: false, msg: 'Erro ao buscar pets no hotel.' };
+  const stay = hotel.find(h => norm(h.pet?.name || h.client?.name || '').includes(norm(petNome)));
+  if (!stay) return { ok: false, msg: 'Não encontrei "' + petNome + '" no hotel. Pets hospedados: ' + (hotel.map(h => h.pet?.name || h.client?.name || '?').join(', ') || 'nenhum') + '.' };
+  const r = await patch('/hotel/' + stay.id + '/check-out');
+  if (r?.id || r?.checkOut) { loadHotel?.(); loadHotelResumo?.(); loadDashboard?.(); return { ok: true, msg: '✅ Check-out de ' + petNome + ' realizado com sucesso!' }; }
+  return { ok: false, msg: 'Erro ao realizar check-out: ' + (r?.message || 'resposta inesperada do servidor') };
+}
+
+async function executarAgendamento(acao) {
+  const norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const clientes = await get('/clients?q=' + encodeURIComponent(acao.petNome)).catch(() => null);
+  if (!clientes?.length) return { ok: false, msg: 'Não encontrei cliente com pet "' + acao.petNome + '". Use o modal de agendamento para criar manualmente.' };
+  const cliente = clientes[0];
+  const pet = (cliente.pets || []).find(p => norm(p.name).includes(norm(acao.petNome)));
+  let employeeId = null;
+  if (acao.funcionarioNome) {
+    const users = await get('/users').catch(() => null);
+    const emp = (users || []).find(u => norm(u.name).includes(norm(acao.funcionarioNome)));
+    employeeId = emp?.id || null;
+  }
+  const servicos = await get('/services').catch(() => null);
+  const svc = (servicos || []).find(s => s.type === acao.servico) || servicos?.[0];
+  const r = await post('/appointments', {
+    clientId: cliente.id,
+    petId: pet?.id || undefined,
+    serviceId: svc?.id || undefined,
+    employeeId: employeeId || undefined,
+    scheduledAt: new Date(acao.scheduledAt).toISOString(),
+    type: acao.servico,
+    priceCharged: svc?.price ? parseFloat(svc.price) : 0,
+  });
+  if (r?.id) { loadDashboard?.(); loadAgenda?.(); return { ok: true, msg: '✅ Agendamento criado! ' + acao.servico + ' para ' + acao.petNome + ' em ' + acao.data + ' às ' + acao.hora + (employeeId ? ' com ' + acao.funcionarioNome : '') + '.' }; }
+  return { ok: false, msg: 'Erro ao criar agendamento: ' + (r?.message || 'resposta inesperada') };
+}
+
+// ── Envio de mensagem ────────────────────────────────────────
+
 async function enviarMensagemChat() {
   const input = document.getElementById('chatbot-input');
   const sendBtn = document.getElementById('chatbot-send');
@@ -3735,38 +3907,62 @@ async function enviarMensagemChat() {
   input.disabled = true;
   sendBtn.disabled = true;
   adicionarMensagemChat('user', texto);
-  mostrarLoadingChat();
 
+  // Feature 3: resposta a ação pendente (sim/não)
+  if (chatbotPendingAction) {
+    const norm = texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/^(sim|s|yes|confirma|confirmar|ok)$/.test(norm)) {
+      mostrarLoadingChat();
+      const acao = chatbotPendingAction;
+      chatbotPendingAction = null;
+      const resultado = acao.tipo === 'checkout' ? await executarCheckout(acao.petNome) : await executarAgendamento(acao);
+      removerLoadingChat();
+      adicionarMensagemChat('ia', resultado.msg);
+      input.disabled = false; sendBtn.disabled = false; input.focus();
+      return;
+    }
+    if (/^(nao|n|no|cancela|cancelar)$/.test(norm)) {
+      chatbotPendingAction = null;
+      adicionarMensagemChat('ia', '❌ Ação cancelada. Como mais posso ajudar?');
+      input.disabled = false; sendBtn.disabled = false; input.focus();
+      return;
+    }
+    chatbotPendingAction = null;
+  }
+
+  // Feature 3: detectar intenção de ação
+  const intencao = detectarIntencao(texto);
+  if (intencao) {
+    const svcLabel = { banho: 'banho', tosa: 'tosa', banho_tosa: 'banho e tosa', consulta: 'consulta veterinária' };
+    const msg = intencao.tipo === 'checkout'
+      ? 'Vou realizar o check-out de ' + intencao.petNome + '. Confirma? (sim/não)'
+      : 'Vou agendar ' + (svcLabel[intencao.servico] || intencao.servico) + ' para ' + intencao.petNome + ' em ' + intencao.data + ' às ' + intencao.hora + (intencao.funcionarioNome ? ' com ' + intencao.funcionarioNome : '') + '. Confirma? (sim/não)';
+    chatbotPendingAction = intencao;
+    adicionarMensagemChat('ia', msg);
+    input.disabled = false; sendBtn.disabled = false; input.focus();
+    return;
+  }
+
+  // Resposta via IA com contexto completo
+  mostrarLoadingChat();
   const today = new Date().toISOString().split('T')[0];
   const [apts, hotelStays, cashData] = await Promise.all([
     get('/appointments?date=' + today).catch(() => null),
     get('/hotel/active').catch(() => null),
     get('/finance/cash-entries?start=' + today + '&end=' + today).catch(() => null),
   ]);
-
   const aptsResumo = (apts || []).length
-    ? (apts).map(a => `- ${a.pet?.name||'?'} (${a.client?.name||'?'}): ${a.type||'?'} | status: ${a.status} | R$${Number(a.priceCharged||0).toFixed(2)}`).join('\n')
+    ? apts.map(a => '- ' + (a.pet?.name||'?') + ' (' + (a.client?.name||'?') + '): ' + (a.type||'?') + ' | status: ' + a.status + ' | func: ' + (a.employee?.name||'sem funcionário') + ' | R$' + Number(a.priceCharged||0).toFixed(2)).join('\n')
     : 'Nenhum agendamento hoje';
-  const hotelResumo = (hotelStays || []).length
-    ? (hotelStays).map(h => `- ${h.pet?.name||h.client?.name||'?'}: check-in ${(h.checkIn||'').split('T')[0]}`).join('\n')
+  const hotelResumo = (hotelStays||[]).length
+    ? hotelStays.map(h => '- ' + (h.pet?.name||h.client?.name||'?') + ': check-in ' + (h.checkIn||'').split('T')[0] + ', ' + (h.isPaid ? 'pago' : 'sem pagamento')).join('\n')
     : 'Nenhum pet hospedado';
   const entries = Array.isArray(cashData) ? cashData : (cashData?.entries || []);
-  const totalCaixa = entries.reduce((s, e) => s + Number(e.amount || 0), 0);
-  const cashResumo = `${entries.length} lançamento(s), total R$${totalCaixa.toFixed(2)}`;
+  const totalCaixa = entries.reduce((s, e) => s + Number(e.amount||0), 0);
+  const cashResumo = entries.length + ' lançamento(s), total R$' + totalCaixa.toFixed(2);
+  const insightsNegocio = gerarTextoContextoNegocio();
 
-  const prompt = `Você é o assistente do PetShop do Carlos. Responda perguntas sobre o negócio de forma direta e amigável. Você pode orientar sobre como criar agendamentos e fazer check-out mas não execute ações diretamente.
-
-Dados atuais (${today}):
-AGENDAMENTOS DO DIA:
-${aptsResumo}
-
-PETS NO HOTEL:
-${hotelResumo}
-
-FATURAMENTO DO DIA:
-${cashResumo}
-
-Pergunta do usuário: ${texto}`;
+  const prompt = 'Você é o assistente do PetShop do Carlos. Responda perguntas sobre o negócio de forma direta e amigável. Você pode orientar sobre como criar agendamentos e fazer check-out. Para executar ações, o usuário precisa pedir explicitamente (ex: "agendar", "fazer check-out").\n\nDados atuais (' + today + '):\nAGENDAMENTOS DO DIA:\n' + aptsResumo + '\n\nPETS NO HOTEL:\n' + hotelResumo + '\n\nFATURAMENTO DO DIA:\n' + cashResumo + insightsNegocio + '\n\nPergunta do usuário: ' + texto;
 
   try {
     const res = await fetch(API + '/ai/financial-report', {
