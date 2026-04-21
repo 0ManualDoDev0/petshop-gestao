@@ -3689,7 +3689,9 @@ if (dtInput) dtInput.value = new Date(now - now.getTimezoneOffset() * 60000).toI
 // ============================================================
 let chatbotOpen = false;
 let chatbotIniciado = false;
-let chatContextCache = null; // { ts, empData, revData30, revCurrWeek, revPrevWeek }
+let chatContextCache = null;   // { ts, empData, revData30, revCurrWeek, revPrevWeek }
+let chatClientesCache = null;  // todos os clientes com pets
+let chatFuncionariosCache = null; // todos os funcionários ativos
 
 // ── UI helpers ───────────────────────────────────────────────
 
@@ -3736,11 +3738,15 @@ async function iniciarChatbot() {
   mostrarLoadingChat();
   const today = new Date().toISOString().split('T')[0];
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-  const [aptsHoje, aptsAmanha, hotelAtivo] = await Promise.all([
+  const [aptsHoje, aptsAmanha, hotelAtivo, todosClientes, todosUsers] = await Promise.all([
     get('/appointments?date=' + today).catch(() => null),
     get('/appointments?date=' + tomorrow).catch(() => null),
     get('/hotel/active').catch(() => null),
+    get('/clients').catch(() => null),
+    get('/users').catch(() => null),
   ]);
+  if (Array.isArray(todosClientes)) chatClientesCache = todosClientes;
+  if (Array.isArray(todosUsers))    chatFuncionariosCache = todosUsers.filter(u => u.isActive);
   removerLoadingChat();
   // Feature 2: alertas proativos antes da boas-vindas
   gerarAlertas(aptsHoje, aptsAmanha, hotelAtivo, today).forEach(a => adicionarMensagemChat('alert', a));
@@ -3829,6 +3835,20 @@ function gerarTextoContextoNegocio() {
   return linhas.length > 0 ? '\nINSIGHTS DO NEGÓCIO (últimos 30 dias):\n' + linhas.join('\n') : '';
 }
 
+function gerarTextoClientes() {
+  if (!chatClientesCache?.length) return '';
+  const lista = chatClientesCache.map(c => {
+    const pets = (c.pets || []).map(p => p.name + (p.breed ? ' ' + p.breed : '')).join(', ');
+    return (pets || '—') + ' (' + c.name + ', id:' + c.id + ')';
+  }).join(' | ');
+  return '\n\nCLIENTES CADASTRADOS (pet/raça → dono, id do cliente):\n' + lista;
+}
+
+function gerarTextoFuncionarios() {
+  if (!chatFuncionariosCache?.length) return '';
+  return '\nFUNCIONÁRIOS ATIVOS: ' + chatFuncionariosCache.map(u => u.name + ' (id:' + u.id + ')').join(', ');
+}
+
 // ── Feature 3: detecção de intenção e execução direta ───────
 
 const _norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -3905,15 +3925,42 @@ async function executarCheckout(petNome) {
 }
 
 async function executarAgendamento(acao) {
-  const clientes = await get('/clients?q=' + encodeURIComponent(acao.petNome)).catch(() => null);
-  if (!clientes?.length) return { ok: false, msg: '❌ "' + acao.petNome + '" não encontrado. Verifique o nome ou use o modal de agendamento.' };
-  const cliente = clientes[0];
-  const pet = (cliente.pets || []).find(p => _norm(p.name).includes(_norm(acao.petNome)));
+  // Resolver cliente/pet pelo cache; fallback para API se cache vazio
+  const base = chatClientesCache || (await get('/clients').catch(() => null)) || [];
+  const busca = _norm(acao.petNome);
 
+  // Coleta todos os matches: por nome do pet ou nome do cliente
+  const matches = [];
+  base.forEach(c => {
+    const petM = (c.pets || []).find(p => _norm(p.name).includes(busca));
+    if (petM) { matches.push({ cliente: c, pet: petM }); return; }
+    if (_norm(c.name).includes(busca)) matches.push({ cliente: c, pet: (c.pets || [])[0] || null });
+  });
+
+  // Fallback: busca direta na API se não encontrou pelo cache
+  if (!matches.length) {
+    const found = await get('/clients?q=' + encodeURIComponent(acao.petNome)).catch(() => null);
+    if (found?.length) {
+      const c = found[0];
+      matches.push({ cliente: c, pet: (c.pets || []).find(p => _norm(p.name).includes(busca)) || (c.pets || [])[0] || null });
+    }
+  }
+
+  if (!matches.length) return { ok: false, msg: '❌ "' + acao.petNome + '" não encontrado. Verifique o nome ou use o modal de agendamento.' };
+
+  // Ambiguidade: mais de um match distinto por nome de pet
+  if (matches.length > 1) {
+    const opcoes = matches.map(m => (m.pet?.name || m.cliente.name) + ' — ' + m.cliente.name).join(' ou ');
+    return { ok: false, msg: '⚠️ Qual desses? ' + opcoes };
+  }
+
+  const { cliente, pet } = matches[0];
+
+  // Resolver funcionário pelo cache
   let employeeId = null, empNomeReal = null;
   if (acao.funcionarioNome) {
-    const users = await get('/users').catch(() => null);
-    const emp = (users || []).find(u => _norm(u.name).includes(_norm(acao.funcionarioNome)));
+    const fonte = chatFuncionariosCache || (await get('/users').catch(() => null)) || [];
+    const emp = fonte.find(u => _norm(u.name).includes(_norm(acao.funcionarioNome)));
     employeeId = emp?.id || null;
     empNomeReal = emp?.name?.split(' ')[0] || null;
   }
@@ -3990,8 +4037,10 @@ async function enviarMensagemChat() {
   const totalCaixa = entries.reduce((s, e) => s + Number(e.amount||0), 0);
   const cashResumo = entries.length + ' lançamento(s), total R$' + totalCaixa.toFixed(2);
   const insightsNegocio = gerarTextoContextoNegocio();
+  const textoClientes = gerarTextoClientes();
+  const textoFuncionarios = gerarTextoFuncionarios();
 
-  const prompt = 'Você é o assistente do PetShop do Carlos. Seja direto e conciso — sem rodeios, sem listas desnecessárias, sem pedir confirmação. Responda em 1-3 frases quando possível.\n\nDados atuais (' + today + '):\nAGENDAMENTOS DO DIA:\n' + aptsResumo + '\n\nPETS NO HOTEL:\n' + hotelResumo + '\n\nFATURAMENTO DO DIA:\n' + cashResumo + insightsNegocio + '\n\nPergunta: ' + texto;
+  const prompt = 'Você é o assistente do PetShop do Carlos. Seja direto e conciso — sem rodeios, sem listas desnecessárias, sem pedir confirmação. Responda em 1-3 frases quando possível. Quando o usuário mencionar um nome parcial de pet ou cliente, identifique pelo cadastro abaixo.' + textoClientes + textoFuncionarios + '\n\nDados atuais (' + today + '):\nAGENDAMENTOS DO DIA:\n' + aptsResumo + '\n\nPETS NO HOTEL:\n' + hotelResumo + '\n\nFATURAMENTO DO DIA:\n' + cashResumo + insightsNegocio + '\n\nPergunta: ' + texto;
 
   try {
     const res = await fetch(API + '/ai/financial-report', {
