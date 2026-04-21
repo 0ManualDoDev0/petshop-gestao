@@ -1562,7 +1562,10 @@ async function patch(path, body = {}) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
     body: JSON.stringify(body)
   });
-  return r.json();
+  if (r.status === 401) { logout(); return null; }
+  const json = await r.json().catch(() => ({ _httpStatus: r.status }));
+  if (!r.ok) { console.error('[PATCH] HTTP ' + r.status + ' ' + path, json); return json; }
+  return json;
 }
 
 async function del(path) {
@@ -4085,8 +4088,11 @@ function _parsearEdicao(texto, t) {
 }
 
 async function executarEdicao(acao) {
+  console.log('[EDIÇÃO] acao recebida:', JSON.stringify(acao));
+
   // Buscar agendamentos do dia
   const apts = await get('/appointments?date=' + acao.data).catch(() => null);
+  console.log('[EDIÇÃO] agendamentos encontrados para', acao.data, ':', apts?.length ?? 'null', apts?.map(a => a.client?.name + ' id=' + a.id));
   if (!Array.isArray(apts) || !apts.length)
     return { ok: false, msg: '❌ Nenhum agendamento em ' + acao.data + '.' };
 
@@ -4097,6 +4103,8 @@ async function executarEdicao(acao) {
     .filter(x => x.score > 0)
     .sort((a, b) => b.score - a.score);
 
+  console.log('[EDIÇÃO] palavras busca:', palavras, '| scored:', scored.map(x => x.apt.client?.name + '=' + x.score));
+
   if (!scored.length)
     return { ok: false, msg: '❌ Agendamento de "' + acao.clienteNome + '" não encontrado em ' + acao.data + '.' };
 
@@ -4106,21 +4114,25 @@ async function executarEdicao(acao) {
     return { ok: false, msg: '⚠️ Qual desses? ' + top.map(x => x.apt.client?.name || '?').join(' ou ') };
 
   const apt = scored[0].apt;
+  console.log('[EDIÇÃO] appointment escolhido: id=' + apt.id + ' cliente=' + apt.client?.name);
   const body = {};
 
   // Funcionário
   if (acao.funcionarioNome) {
     const fonte = chatFuncionariosCache || (await get('/users').catch(() => null)) || [];
     const emp = fonte.find(u => _norm(u.name).includes(_norm(acao.funcionarioNome)));
-    if (emp) body.employeeId = emp.id;
+    console.log('[EDIÇÃO] busca funcionário "' + acao.funcionarioNome + '":', emp ? 'id=' + emp.id + ' nome=' + emp.name : 'NÃO ENCONTRADO');
+    if (!emp) return { ok: false, msg: '❌ Funcionário "' + acao.funcionarioNome + '" não encontrado.' };
+    body.employeeId = emp.id;
   }
 
   // Serviço
   if (acao.novoSvc) {
     const servicos = await get('/services').catch(() => null);
     const svc = (servicos || []).find(s => s.type === acao.novoSvc);
-    if (svc) body.serviceId = svc.id;
-    body.type = acao.novoSvc;
+    console.log('[EDIÇÃO] busca serviço tipo "' + acao.novoSvc + '":', svc ? 'id=' + svc.id : 'NÃO ENCONTRADO');
+    if (!svc) return { ok: false, msg: '❌ Serviço "' + acao.novoSvc + '" não cadastrado.' };
+    body.serviceId = svc.id;
   }
 
   // Valor
@@ -4129,18 +4141,22 @@ async function executarEdicao(acao) {
   // Horário (mantém a data original, muda só o horário)
   if (acao.novoHorario) body.scheduledAt = acao.data + 'T' + acao.novoHorario + ':00';
 
+  console.log('[EDIÇÃO] body a enviar:', JSON.stringify(body));
+
   if (!Object.keys(body).length)
     return { ok: false, msg: '❌ Informe o que alterar: funcionário, serviço, valor ou horário.' };
 
   const r = await patch('/appointments/' + apt.id, body);
-  if (r?.id || r?.scheduledAt !== undefined || r?.employeeId !== undefined) {
+  console.log('[EDIÇÃO] resposta PATCH:', JSON.stringify(r));
+
+  if (r?.id) {
     loadDashboard?.(); loadAgenda?.();
     const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
     const hoje   = new Date().toISOString().split('T')[0];
     const dataLabel = acao.data === amanha ? 'amanhã' : acao.data === hoje ? 'hoje' : acao.data;
-    return { ok: true, msg: '✅ Atualizado! ' + apt.client?.name + (acao.funcionarioNome ? ' - ' + acao.funcionarioNome : '') + ' - ' + dataLabel };
+    return { ok: true, msg: '✅ Atualizado! ' + apt.client?.name + (acao.funcionarioNome ? ' → ' + acao.funcionarioNome : '') + ' — ' + dataLabel };
   }
-  return { ok: false, msg: '❌ Erro ao atualizar: ' + (r?.message || 'resposta inesperada') };
+  return { ok: false, msg: '❌ Erro ao atualizar: ' + (r?.message || JSON.stringify(r) || 'resposta inesperada') };
 }
 
 // ── Envio de mensagem ────────────────────────────────────────
