@@ -3855,6 +3855,12 @@ const _SVC_LABELS = { banho: 'Banho', tosa: 'Tosa', banho_tosa: 'Banho e Tosa', 
 function detectarIntencao(texto) {
   const t = _norm(texto);
 
+  // Intenção: edição de agendamento
+  if (/\b(edita[r]?|altera[r]?|muda[r]?|coloca[r]?|atribui[r]?|troca[r]?|atualiza[r]?)\b/.test(t)) {
+    const ed = _parsearEdicao(texto, t);
+    if (ed) return ed;
+  }
+
   // Intenção: check-out
   if (/check.?out|dar checkout|fazer checkout/.test(t)) {
     const m = texto.match(/(?:check.?out)\s+(?:de\s+|do\s+|da\s+)?([A-ZÀ-Úa-zà-ú][\wà-úÀ-Ú\s]+?)(?:\s*$|\?|\.)/i);
@@ -4015,6 +4021,128 @@ async function executarAgendamento(acao) {
   return { ok: false, msg: '❌ Erro: ' + (r?.message || 'falha ao criar') };
 }
 
+// ── Edição de agendamento ────────────────────────────────────
+
+function _parsearEdicao(texto, t) {
+  // Data (mesmos parsers do agendamento)
+  const hojeDt   = new Date().toISOString().split('T')[0];
+  const amanhaDt = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  let data = t.includes('amanha') ? amanhaDt : t.includes('hoje') ? hojeDt : null;
+  if (!data) {
+    const dmM = texto.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+    if (dmM) {
+      const ano = dmM[3] ? (dmM[3].length === 2 ? '20' + dmM[3] : dmM[3]) : new Date().getFullYear();
+      data = ano + '-' + dmM[2].padStart(2,'0') + '-' + dmM[1].padStart(2,'0');
+    }
+  }
+  if (!data) {
+    const diaM = texto.match(/\bdia\s+(\d{1,2})\b/i);
+    if (diaM) {
+      const d = parseInt(diaM[1]);
+      const ref = new Date(); ref.setHours(0,0,0,0);
+      const cand = new Date(ref.getFullYear(), ref.getMonth(), d);
+      if (cand <= ref) cand.setMonth(cand.getMonth() + 1);
+      data = cand.toISOString().split('T')[0];
+    }
+  }
+  if (!data) {
+    const SEMANA = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+    for (let i = 0; i < SEMANA.length; i++) {
+      if (t.includes(SEMANA[i])) {
+        const diff = (i - new Date().getDay() + 7) % 7 || 7;
+        data = new Date(Date.now() + diff * 86400000).toISOString().split('T')[0];
+        break;
+      }
+    }
+  }
+
+  // Novo horário: "para 14h" / "para 14:30"
+  const timeM = texto.match(/para\s+(\d{1,2})h(?::?(\d{2}))?|para\s+(\d{1,2}):(\d{2})/i);
+  const novoHorario = timeM ? ((timeM[1]||timeM[3]).padStart(2,'0') + ':' + (timeM[2]||timeM[4]||'00')) : null;
+
+  // Novo serviço: "para banho", "para tosa", etc.
+  const svcM = texto.match(/para\s+(banho\s*e\s*tosa|banho_tosa|banho|tosa|consulta|veterinari\w*)/i);
+  const novoSvc = svcM ? _norm(svcM[1]).replace(/\s*e\s*tosa/, '_tosa').replace(/veterinari\w*/, 'consulta') : null;
+
+  // Novo valor: "para 110", "para R$110" — removendo horários primeiro
+  const semH = texto.replace(/\d{1,2}h(?::?\d{2})?|\d{1,2}:\d{2}/g, '');
+  const precoM = semH.match(/para\s+R?\$?\s*(\d+(?:[,.]\d{1,2})?)\s*(?:reais)?(?!\s*\/)/i);
+  const novoPreco = precoM && !svcM ? parseFloat(precoM[1].replace(',', '.')) : null;
+
+  // Nomes: separar cliente de funcionário pelo cache
+  const nomes = _extrairNomes(texto, t);
+  const empPrimeiros = new Set((chatFuncionariosCache || []).map(u => _norm(u.name.split(' ')[0])));
+  const nomesEmp     = nomes.filter(n => empPrimeiros.has(_norm(n)));
+  const nomesCliente = nomes.filter(n => !empPrimeiros.has(_norm(n)));
+  const clienteNome    = nomesCliente.join(' ') || null;
+  const funcionarioNome = nomesEmp[0] || null;
+
+  // Precisa pelo menos de cliente para editar
+  if (!clienteNome) return { tipo: 'edicao_sem_info', faltando: 'nome do cliente' };
+  if (!data)        return { tipo: 'edicao_sem_info', faltando: 'data do agendamento' };
+
+  return { tipo: 'edicao', clienteNome, data, funcionarioNome, novoSvc, novoPreco, novoHorario };
+}
+
+async function executarEdicao(acao) {
+  // Buscar agendamentos do dia
+  const apts = await get('/appointments?date=' + acao.data).catch(() => null);
+  if (!Array.isArray(apts) || !apts.length)
+    return { ok: false, msg: '❌ Nenhum agendamento em ' + acao.data + '.' };
+
+  // Encontrar pelo nome do cliente (score)
+  const palavras = _norm(acao.clienteNome).split(/\s+/).filter(p => p.length > 1);
+  const scored = apts
+    .map(a => ({ apt: a, score: palavras.filter(p => _norm(a.client?.name || '').includes(p)).length }))
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored.length)
+    return { ok: false, msg: '❌ Agendamento de "' + acao.clienteNome + '" não encontrado em ' + acao.data + '.' };
+
+  const topScore = scored[0].score;
+  const top = scored.filter(x => x.score === topScore);
+  if (top.length > 1)
+    return { ok: false, msg: '⚠️ Qual desses? ' + top.map(x => x.apt.client?.name || '?').join(' ou ') };
+
+  const apt = scored[0].apt;
+  const body = {};
+
+  // Funcionário
+  if (acao.funcionarioNome) {
+    const fonte = chatFuncionariosCache || (await get('/users').catch(() => null)) || [];
+    const emp = fonte.find(u => _norm(u.name).includes(_norm(acao.funcionarioNome)));
+    if (emp) body.employeeId = emp.id;
+  }
+
+  // Serviço
+  if (acao.novoSvc) {
+    const servicos = await get('/services').catch(() => null);
+    const svc = (servicos || []).find(s => s.type === acao.novoSvc);
+    if (svc) body.serviceId = svc.id;
+    body.type = acao.novoSvc;
+  }
+
+  // Valor
+  if (acao.novoPreco != null) body.priceCharged = acao.novoPreco;
+
+  // Horário (mantém a data original, muda só o horário)
+  if (acao.novoHorario) body.scheduledAt = acao.data + 'T' + acao.novoHorario + ':00';
+
+  if (!Object.keys(body).length)
+    return { ok: false, msg: '❌ Informe o que alterar: funcionário, serviço, valor ou horário.' };
+
+  const r = await patch('/appointments/' + apt.id, body);
+  if (r?.id || r?.scheduledAt !== undefined || r?.employeeId !== undefined) {
+    loadDashboard?.(); loadAgenda?.();
+    const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const hoje   = new Date().toISOString().split('T')[0];
+    const dataLabel = acao.data === amanha ? 'amanhã' : acao.data === hoje ? 'hoje' : acao.data;
+    return { ok: true, msg: '✅ Atualizado! ' + apt.client?.name + (acao.funcionarioNome ? ' - ' + acao.funcionarioNome : '') + ' - ' + dataLabel };
+  }
+  return { ok: false, msg: '❌ Erro ao atualizar: ' + (r?.message || 'resposta inesperada') };
+}
+
 // ── Envio de mensagem ────────────────────────────────────────
 
 async function enviarMensagemChat() {
@@ -4030,14 +4158,16 @@ async function enviarMensagemChat() {
   // Feature 3: detectar e executar ação diretamente
   const intencao = detectarIntencao(texto);
   if (intencao) {
-    if (intencao.tipo === 'agendamento_sem_info' || intencao.tipo === 'checkout_sem_nome') {
+    if (intencao.tipo === 'agendamento_sem_info' || intencao.tipo === 'checkout_sem_nome' || intencao.tipo === 'edicao_sem_info') {
       const falta = intencao.tipo === 'checkout_sem_nome' ? 'nome do cliente' : intencao.faltando;
       adicionarMensagemChat('ia', 'Qual o ' + falta + '?');
       input.disabled = false; sendBtn.disabled = false; input.focus();
       return;
     }
     mostrarLoadingChat();
-    const resultado = intencao.tipo === 'checkout' ? await executarCheckout(intencao.clienteNome) : await executarAgendamento(intencao);
+    const resultado = intencao.tipo === 'checkout' ? await executarCheckout(intencao.clienteNome) :
+                      intencao.tipo === 'edicao'   ? await executarEdicao(intencao) :
+                      await executarAgendamento(intencao);
     removerLoadingChat();
     adicionarMensagemChat('ia', resultado.msg);
     input.disabled = false; sendBtn.disabled = false; input.focus();
