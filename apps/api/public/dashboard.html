@@ -3837,11 +3837,8 @@ function gerarTextoContextoNegocio() {
 
 function gerarTextoClientes() {
   if (!chatClientesCache?.length) return '';
-  const lista = chatClientesCache.map(c => {
-    const pets = (c.pets || []).map(p => p.name + (p.breed ? ' ' + p.breed : '')).join(', ');
-    return (pets || '—') + ' (' + c.name + ', id:' + c.id + ')';
-  }).join(' | ');
-  return '\n\nCLIENTES CADASTRADOS (pet/raça → dono, id do cliente):\n' + lista;
+  const lista = chatClientesCache.map(c => c.name + ' (id:' + c.id + ')').join(', ');
+  return '\n\nCLIENTES CADASTRADOS:\n' + lista;
 }
 
 function gerarTextoFuncionarios() {
@@ -3860,10 +3857,9 @@ function detectarIntencao(texto) {
 
   // Intenção: check-out
   if (/check.?out|dar checkout|fazer checkout/.test(t)) {
-    // Pega qualquer palavra maiúscula após o trigger, ou qualquer palavra que não seja keyword
-    const m = texto.match(/(?:check.?out)\s+(?:de\s+|do\s+|da\s+)?([A-ZÀ-Úa-zà-ú][a-zà-úA-ZÀ-Ú]+)/i);
-    const petNome = m ? m[1].trim() : _extrairNomes(texto, t)[0];
-    if (petNome) return { tipo: 'checkout', petNome };
+    const m = texto.match(/(?:check.?out)\s+(?:de\s+|do\s+|da\s+)?([A-ZÀ-Úa-zà-ú][\wà-úÀ-Ú\s]+?)(?:\s*$|\?|\.)/i);
+    const clienteNome = (m ? m[1].trim() : _extrairNomes(texto, t).join(' ')) || null;
+    if (clienteNome) return { tipo: 'checkout', clienteNome };
     return { tipo: 'checkout_sem_nome' };
   }
 
@@ -3893,15 +3889,19 @@ function detectarIntencao(texto) {
     const precoM = semHorario.match(/\b(\d{2,4}(?:[,.]\d{2})?)\b/);
     if (precoM) preco = parseFloat(precoM[1].replace(',', '.'));
 
-    // Nomes capitalizados que não são palavras reservadas
+    // Separar nome do cliente de nome do funcionário usando o cache de funcionários
     const nomes = _extrairNomes(texto, t);
-    const petNome = nomes[0] || null;
-    const funcionarioNome = nomes[1] || null;
+    const empPrimeiros = new Set((chatFuncionariosCache || []).map(u => _norm(u.name.split(' ')[0])));
+    const nomesEmp     = nomes.filter(n => empPrimeiros.has(_norm(n)));
+    const nomesCliente = nomes.filter(n => !empPrimeiros.has(_norm(n)));
 
-    if (!petNome) return { tipo: 'agendamento_sem_info', faltando: 'nome do pet ou cliente' };
-    if (!data)    return { tipo: 'agendamento_sem_info', faltando: 'data (hoje, amanhã ou DD/MM)' };
+    const clienteNome   = nomesCliente.join(' ') || nomes[0] || null;
+    const funcionarioNome = nomesEmp[0] || null;
 
-    return { tipo: 'agendamento', petNome, funcionarioNome, servico: svc, data, hora: h + ':' + m2, preco, scheduledAt: data + 'T' + h + ':' + m2 + ':00' };
+    if (!clienteNome) return { tipo: 'agendamento_sem_info', faltando: 'nome do cliente' };
+    if (!data)        return { tipo: 'agendamento_sem_info', faltando: 'data (hoje, amanhã ou DD/MM)' };
+
+    return { tipo: 'agendamento', clienteNome, funcionarioNome, servico: svc, data, hora: h + ':' + m2, preco, scheduledAt: data + 'T' + h + ':' + m2 + ':00' };
   }
 
   return null;
@@ -3911,50 +3911,45 @@ function _extrairNomes(texto, tNorm) {
   return texto.split(/\s+/).filter(p => /^[A-ZÀ-Ú]/.test(p) && !_IGNORAR.has(_norm(p)) && !/^\d/.test(p));
 }
 
-async function executarCheckout(petNome) {
+async function executarCheckout(clienteNome) {
   const hotel = await get('/hotel/active').catch(() => null);
   if (!hotel) return { ok: false, msg: '❌ Erro ao buscar hotel.' };
-  const stay = hotel.find(h => _norm(h.pet?.name || h.client?.name || '').includes(_norm(petNome)));
+  const busca = _norm(clienteNome);
+  const stay = hotel.find(h => _norm(h.client?.name || h.pet?.name || '').includes(busca));
   if (!stay) {
-    const lista = hotel.map(h => h.pet?.name || h.client?.name || '?').join(', ') || 'nenhum';
-    return { ok: false, msg: '❌ "' + petNome + '" não encontrado no hotel. Hospedados: ' + lista };
+    const lista = hotel.map(h => h.client?.name || h.pet?.name || '?').join(', ') || 'nenhum';
+    return { ok: false, msg: '❌ "' + clienteNome + '" não encontrado no hotel. Hospedados: ' + lista };
   }
   const r = await patch('/hotel/' + stay.id + '/check-out');
-  if (r?.id || r?.checkOut) { loadHotel?.(); loadHotelResumo?.(); loadDashboard?.(); return { ok: true, msg: '✅ Check-out de ' + petNome + ' feito!' }; }
+  if (r?.id || r?.checkOut) { loadHotel?.(); loadHotelResumo?.(); loadDashboard?.(); return { ok: true, msg: '✅ Check-out de ' + clienteNome + ' feito!' }; }
   return { ok: false, msg: '❌ Falha no check-out: ' + (r?.message || 'erro inesperado') };
 }
 
 async function executarAgendamento(acao) {
-  // Resolver cliente/pet pelo cache; fallback para API se cache vazio
   const base = chatClientesCache || (await get('/clients').catch(() => null)) || [];
-  const busca = _norm(acao.petNome);
+  // Score por quantidade de palavras do nome que batem no cliente
+  const palavras = _norm(acao.clienteNome).split(/\s+/).filter(p => p.length > 1);
+  const scored = base
+    .map(c => ({ cliente: c, score: palavras.filter(p => _norm(c.name).includes(p)).length }))
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score);
 
-  // Coleta todos os matches: por nome do pet ou nome do cliente
-  const matches = [];
-  base.forEach(c => {
-    const petM = (c.pets || []).find(p => _norm(p.name).includes(busca));
-    if (petM) { matches.push({ cliente: c, pet: petM }); return; }
-    if (_norm(c.name).includes(busca)) matches.push({ cliente: c, pet: (c.pets || [])[0] || null });
-  });
-
-  // Fallback: busca direta na API se não encontrou pelo cache
-  if (!matches.length) {
-    const found = await get('/clients?q=' + encodeURIComponent(acao.petNome)).catch(() => null);
-    if (found?.length) {
-      const c = found[0];
-      matches.push({ cliente: c, pet: (c.pets || []).find(p => _norm(p.name).includes(busca)) || (c.pets || [])[0] || null });
-    }
+  // Fallback à API se cache vazio ou sem resultado
+  if (!scored.length) {
+    const found = await get('/clients?q=' + encodeURIComponent(palavras[0] || acao.clienteNome)).catch(() => null);
+    if (found?.length) scored.push({ cliente: found[0], score: 1 });
   }
 
-  if (!matches.length) return { ok: false, msg: '❌ "' + acao.petNome + '" não encontrado. Verifique o nome ou use o modal de agendamento.' };
+  if (!scored.length) return { ok: false, msg: '❌ "' + acao.clienteNome + '" não encontrado. Verifique o nome ou use o modal de agendamento.' };
 
-  // Ambiguidade: mais de um match distinto por nome de pet
-  if (matches.length > 1) {
-    const opcoes = matches.map(m => (m.pet?.name || m.cliente.name) + ' — ' + m.cliente.name).join(' ou ');
-    return { ok: false, msg: '⚠️ Qual desses? ' + opcoes };
+  // Ambiguidade: múltiplos com mesmo score máximo
+  const topScore = scored[0].score;
+  const top = scored.filter(x => x.score === topScore);
+  if (top.length > 1) {
+    return { ok: false, msg: '⚠️ Qual desses? ' + top.map(x => x.cliente.name).join(' ou ') };
   }
 
-  const { cliente, pet } = matches[0];
+  const cliente = scored[0].cliente;
 
   // Resolver funcionário pelo cache
   let employeeId = null, empNomeReal = null;
@@ -3971,7 +3966,6 @@ async function executarAgendamento(acao) {
 
   const r = await post('/appointments', {
     clientId: cliente.id,
-    petId: pet?.id || undefined,
     serviceId: svc?.id || undefined,
     employeeId: employeeId || undefined,
     scheduledAt: new Date(acao.scheduledAt).toISOString(),
@@ -3985,7 +3979,7 @@ async function executarAgendamento(acao) {
     const hoje   = new Date().toISOString().split('T')[0];
     const dataLabel = acao.data === amanha ? 'amanhã' : acao.data === hoje ? 'hoje' : acao.data;
     const empLabel  = empNomeReal || (acao.funcionarioNome ? '?' : null);
-    return { ok: true, msg: '✅ Agendado! ' + acao.petNome + ' - ' + (_SVC_LABELS[acao.servico]||acao.servico) + ' - ' + dataLabel + ' ' + acao.hora + (empLabel ? ' - ' + empLabel : '') };
+    return { ok: true, msg: '✅ Agendado! ' + cliente.name + ' - ' + (_SVC_LABELS[acao.servico]||acao.servico) + ' - ' + dataLabel + ' ' + acao.hora + (empLabel ? ' - ' + empLabel : '') };
   }
   return { ok: false, msg: '❌ Erro: ' + (r?.message || 'falha ao criar') };
 }
@@ -4006,13 +4000,13 @@ async function enviarMensagemChat() {
   const intencao = detectarIntencao(texto);
   if (intencao) {
     if (intencao.tipo === 'agendamento_sem_info' || intencao.tipo === 'checkout_sem_nome') {
-      const falta = intencao.tipo === 'checkout_sem_nome' ? 'nome do pet' : intencao.faltando;
+      const falta = intencao.tipo === 'checkout_sem_nome' ? 'nome do cliente' : intencao.faltando;
       adicionarMensagemChat('ia', 'Qual o ' + falta + '?');
       input.disabled = false; sendBtn.disabled = false; input.focus();
       return;
     }
     mostrarLoadingChat();
-    const resultado = intencao.tipo === 'checkout' ? await executarCheckout(intencao.petNome) : await executarAgendamento(intencao);
+    const resultado = intencao.tipo === 'checkout' ? await executarCheckout(intencao.clienteNome) : await executarAgendamento(intencao);
     removerLoadingChat();
     adicionarMensagemChat('ia', resultado.msg);
     input.disabled = false; sendBtn.disabled = false; input.focus();
@@ -4040,7 +4034,7 @@ async function enviarMensagemChat() {
   const textoClientes = gerarTextoClientes();
   const textoFuncionarios = gerarTextoFuncionarios();
 
-  const prompt = 'Você é o assistente do PetShop do Carlos. Seja direto e conciso — sem rodeios, sem listas desnecessárias, sem pedir confirmação. Responda em 1-3 frases quando possível. Quando o usuário mencionar um nome parcial de pet ou cliente, identifique pelo cadastro abaixo.' + textoClientes + textoFuncionarios + '\n\nDados atuais (' + today + '):\nAGENDAMENTOS DO DIA:\n' + aptsResumo + '\n\nPETS NO HOTEL:\n' + hotelResumo + '\n\nFATURAMENTO DO DIA:\n' + cashResumo + insightsNegocio + '\n\nPergunta: ' + texto;
+  const prompt = 'Você é o assistente do PetShop do Carlos. Seja direto e conciso — sem rodeios, sem listas, sem pedir confirmação. Responda em 1-3 frases. Neste sistema cada cliente é identificado pelo nome completo (ex: "Lua Shitzu Wagner"). Quando o usuário citar um nome parcial, use o cadastro abaixo para identificar o cliente correto.' + textoClientes + textoFuncionarios + '\n\nDados atuais (' + today + '):\nAGENDAMENTOS DO DIA:\n' + aptsResumo + '\n\nHOTEL:\n' + hotelResumo + '\n\nFATURAMENTO DO DIA:\n' + cashResumo + insightsNegocio + '\n\nPergunta: ' + texto;
 
   try {
     const res = await fetch(API + '/ai/financial-report', {
