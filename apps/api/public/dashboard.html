@@ -4018,9 +4018,14 @@ function _parsearEdicao(texto, t) {
   const novoHorario = timeM ? ((timeM[1]||timeM[3]).padStart(2,'0')+':'+(timeM[2]||timeM[4]||'00')) : null;
   const svcM = texto.match(/para\s+(banho\s*e\s*tosa|banho_tosa|banho|tosa|consulta|veterinari\w*)/i);
   const novoSvc = svcM ? _norm(svcM[1]).replace(/\s*e\s*tosa/,'_tosa').replace(/veterinari\w*/,'consulta') : null;
-  const semH = texto.replace(/\d{1,2}h(?::?\d{2})?|\d{1,2}:\d{2}/g,'');
-  const precoM = semH.match(/para\s+R?\$?\s*(\d+(?:[,.]\d{1,2})?)\s*(?:reais)?(?!\s*\/)/i);
-  const novoPreco = precoM && !svcM ? parseFloat(precoM[1].replace(',','.')) : null;
+  // Remove datas e horários antes de buscar preço para evitar falsos positivos
+  const semH = texto
+    .replace(/\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/g, '')   // datas DD/MM
+    .replace(/\d{1,2}h(?::?\d{2})?/g, '')               // horários Nh
+    .replace(/\d{1,2}:\d{2}/g, '');                      // horários N:MM
+  // Aceita: "para 65", "cobrar 65", "cobra 65", "valor 65", "valor de 65", "por R$65", "65 reais", "R$ 65"
+  const precoM = semH.match(/(?:para|cobra[r]?|valor(?:\s+de)?|por)\s+R?\$?\s*(\d+(?:[,.]\d{1,2})?)\s*(?:reais)?|R\$\s*(\d+(?:[,.]\d{1,2})?)|(\d+(?:[,.]\d{1,2})?)\s+reais/i);
+  const novoPreco = precoM && !svcM ? parseFloat((precoM[1]||precoM[2]||precoM[3]).replace(',','.')) : null;
   const nomes = _extrairNomes(texto, t);
   const empPrimeiros = new Set((chatFuncionariosCache||[]).map(u => _norm(u.name.split(' ')[0])));
   const nomesEmp = nomes.filter(n => empPrimeiros.has(_norm(n)));
@@ -4087,7 +4092,7 @@ async function executarEdicao(acao) {
   // Horário (mantém a data original, muda só o horário)
   if (acao.novoHorario) body.scheduledAt = acao.data + 'T' + acao.novoHorario + ':00';
 
-  console.log('[EDIÇÃO] body a enviar:', JSON.stringify(body));
+  console.log('[EDIÇÃO] body único PATCH (campos:', Object.keys(body).join(', '), '):', JSON.stringify(body));
 
   if (!Object.keys(body).length)
     return { ok: false, msg: '❌ Informe o que alterar: funcionário, serviço, valor ou horário.' };
