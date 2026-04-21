@@ -3869,13 +3869,36 @@ function detectarIntencao(texto) {
                 t.includes('tosa') ? 'tosa' :
                 t.includes('consulta') || t.includes('veterinari') ? 'consulta' : 'banho';
 
-    // Data: amanhã / hoje / DD/MM
+    // Data: amanhã / hoje / DD/MM / DD/MM/AAAA / "dia N" / dia da semana
     const hojeDt   = new Date().toISOString().split('T')[0];
     const amanhaDt = new Date(Date.now() + 86400000).toISOString().split('T')[0];
     let data = t.includes('amanha') ? amanhaDt : t.includes('hoje') ? hojeDt : null;
     if (!data) {
-      const dmM = texto.match(/(\d{1,2})\/(\d{1,2})/);
-      if (dmM) data = new Date().getFullYear() + '-' + dmM[2].padStart(2,'0') + '-' + dmM[1].padStart(2,'0');
+      const dmM = texto.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+      if (dmM) {
+        const ano = dmM[3] ? (dmM[3].length === 2 ? '20' + dmM[3] : dmM[3]) : new Date().getFullYear();
+        data = ano + '-' + dmM[2].padStart(2,'0') + '-' + dmM[1].padStart(2,'0');
+      }
+    }
+    if (!data) {
+      const diaM = texto.match(/\bdia\s+(\d{1,2})\b/i);
+      if (diaM) {
+        const d = parseInt(diaM[1]);
+        const ref = new Date(); ref.setHours(0,0,0,0);
+        const cand = new Date(ref.getFullYear(), ref.getMonth(), d);
+        if (cand <= ref) cand.setMonth(cand.getMonth() + 1);
+        data = cand.toISOString().split('T')[0];
+      }
+    }
+    if (!data) {
+      const SEMANA = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+      for (let i = 0; i < SEMANA.length; i++) {
+        if (t.includes(SEMANA[i])) {
+          const diff = (i - new Date().getDay() + 7) % 7 || 7;
+          data = new Date(Date.now() + diff * 86400000).toISOString().split('T')[0];
+          break;
+        }
+      }
     }
 
     // Horário: 10h / 10h30 / 10:30
@@ -3883,11 +3906,14 @@ function detectarIntencao(texto) {
     const h  = timeM ? (timeM[1] || timeM[3]).padStart(2,'0') : '08';
     const m2 = timeM ? (timeM[2] || timeM[4] || '00') : '00';
 
-    // Preço: número ≥2 dígitos que não é horário
+    // Preço: remover datas e horários antes de buscar; exige R$, "reais" ou número isolado sem barra
     let preco = null;
-    const semHorario = texto.replace(/\d{1,2}h(?::\d{2})?|\d{1,2}:\d{2}/g, '');
-    const precoM = semHorario.match(/\b(\d{2,4}(?:[,.]\d{2})?)\b/);
-    if (precoM) preco = parseFloat(precoM[1].replace(',', '.'));
+    const semDataHora = texto
+      .replace(/\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/g, '')   // remove datas DD/MM e DD/MM/AAAA
+      .replace(/\d{1,2}h(?::?\d{2})?/g, '')               // remove horários Nh e Nh:MM
+      .replace(/\d{1,2}:\d{2}/g, '');                      // remove horários N:MM
+    const precoM = semDataHora.match(/R\$\s*(\d+(?:[,.]\d{1,2})?)|(\d+(?:[,.]\d{1,2})?)\s*reais|\b(\d{2,4}(?:[,.]\d{2})?)\b/);
+    if (precoM) preco = parseFloat((precoM[1] || precoM[2] || precoM[3]).replace(',', '.'));
 
     // Separar nome do cliente de nome do funcionário usando o cache de funcionários
     const nomes = _extrairNomes(texto, t);
