@@ -3867,7 +3867,8 @@ function detectarIntencao(texto) {
   if (/\bagenda[r]?\b|\bmarcar?\b/.test(t)) {
     const svc = t.includes('banho e tosa') || t.includes('banho_tosa') ? 'banho_tosa' :
                 t.includes('tosa') ? 'tosa' :
-                t.includes('consulta') || t.includes('veterinari') ? 'consulta' : 'banho';
+                t.includes('consulta') || t.includes('veterinari') ? 'consulta' :
+                t.includes('banho') ? 'banho' : null;
 
     // Data: amanhã / hoje / DD/MM / DD/MM/AAAA / "dia N" / dia da semana
     const hojeDt   = new Date().toISOString().split('T')[0];
@@ -3986,16 +3987,21 @@ async function executarAgendamento(acao) {
     empNomeReal = emp?.name?.split(' ')[0] || null;
   }
 
-  const servicos = await get('/services').catch(() => null);
-  const svc = (servicos || []).find(s => s.type === acao.servico) || servicos?.[0];
-  const preco = acao.preco != null ? acao.preco : (svc?.price ? parseFloat(svc.price) : 0);
+  // Só busca serviço se o usuário especificou um
+  let serviceId = undefined, serviceType = acao.servico || '';
+  if (acao.servico) {
+    const servicos = await get('/services').catch(() => null);
+    const svc = (servicos || []).find(s => s.type === acao.servico);
+    serviceId = svc?.id || undefined;
+  }
+  const preco = acao.preco != null ? acao.preco : 0;
 
   const r = await post('/appointments', {
     clientId: cliente.id,
-    serviceId: svc?.id || undefined,
+    serviceId,
     employeeId: employeeId || undefined,
     scheduledAt: new Date(acao.scheduledAt).toISOString(),
-    type: acao.servico,
+    type: serviceType,
     priceCharged: preco,
   });
 
@@ -4004,8 +4010,7 @@ async function executarAgendamento(acao) {
     const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
     const hoje   = new Date().toISOString().split('T')[0];
     const dataLabel = acao.data === amanha ? 'amanhã' : acao.data === hoje ? 'hoje' : acao.data;
-    const empLabel  = empNomeReal || (acao.funcionarioNome ? '?' : null);
-    return { ok: true, msg: '✅ Agendado! ' + cliente.name + ' - ' + (_SVC_LABELS[acao.servico]||acao.servico) + ' - ' + dataLabel + ' ' + acao.hora + (empLabel ? ' - ' + empLabel : '') };
+    return { ok: true, msg: '✅ Agendado! ' + cliente.name + ' - ' + dataLabel + ' ' + acao.hora };
   }
   return { ok: false, msg: '❌ Erro: ' + (r?.message || 'falha ao criar') };
 }
