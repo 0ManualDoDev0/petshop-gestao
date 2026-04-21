@@ -3882,60 +3882,46 @@ function _extrairDataMensagem(texto, t) {
   return null; // nenhuma data encontrada — caller usa today
 }
 
+// Retorna true para mensagens que são perguntas → vão para a IA
+function _ehPergunta(t) {
+  return /\?|quem\b|qual\b|quanto\b|como\b|quando\b|me diz|me fala|tem\s+(algu|agend)|quantos|lista|mostr|ver\b|veja|existe|há\b/.test(t);
+}
+
 function detectarIntencao(texto) {
   const t = _norm(texto);
 
-  // Intenção: edição de agendamento
-  if (/\b(edita[r]?|altera[r]?|muda[r]?|coloca[r]?|atribui[r]?|troca[r]?|atualiza[r]?)\b/.test(t)) {
-    const ed = _parsearEdicao(texto, t);
-    if (ed) return ed;
-  }
-
-  // Intenção: check-out
-  if (/check.?out|dar checkout|fazer checkout/.test(t)) {
+  // Checkout
+  if (/check.?out/.test(t)) {
     const m = texto.match(/(?:check.?out)\s+(?:de\s+|do\s+|da\s+)?([A-ZÀ-Úa-zà-ú][\wà-úÀ-Ú\s]+?)(?:\s*$|\?|\.)/i);
     const clienteNome = (m ? m[1].trim() : _extrairNomes(texto, t).join(' ')) || null;
-    if (clienteNome) return { tipo: 'checkout', clienteNome };
-    return { tipo: 'checkout_sem_nome' };
+    return { tipo: 'checkout', clienteNome };
   }
 
-  // Intenção: agendamento — trigger flexível: "agenda", "agendar", "marcar"
+  // Alterar funcionário / serviço / horário / valor
+  if (/\b(coloca[r]?|altera[r]?|muda[r]?|atribui[r]?|troca[r]?|edita[r]?|atualiza[r]?)\b/.test(t)) {
+    return _parsearEdicao(texto, t);
+  }
+
+  // Criar agendamento
   if (/\bagenda[r]?\b|\bmarcar?\b/.test(t)) {
     const svc = t.includes('banho e tosa') || t.includes('banho_tosa') ? 'banho_tosa' :
                 t.includes('tosa') ? 'tosa' :
                 t.includes('consulta') || t.includes('veterinari') ? 'consulta' :
                 t.includes('banho') ? 'banho' : null;
-
-    // Data: amanhã / hoje / DD/MM / DD/MM/AAAA / "dia N" / dia da semana
-    const data = _extrairDataMensagem(texto, t);
-
-    // Horário: 10h / 10h30 / 10:30
+    const data = _extrairDataMensagem(texto, t) || _localDate();
     const timeM = texto.match(/(\d{1,2})h(?::?(\d{2}))?|(\d{1,2}):(\d{2})/);
     const h  = timeM ? (timeM[1] || timeM[3]).padStart(2,'0') : '08';
     const m2 = timeM ? (timeM[2] || timeM[4] || '00') : '00';
-
-    // Preço: remover datas e horários antes de buscar; exige R$, "reais" ou número isolado sem barra
-    let preco = null;
-    const semDataHora = texto
-      .replace(/\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/g, '')   // remove datas DD/MM e DD/MM/AAAA
-      .replace(/\d{1,2}h(?::?\d{2})?/g, '')               // remove horários Nh e Nh:MM
-      .replace(/\d{1,2}:\d{2}/g, '');                      // remove horários N:MM
+    const semDataHora = texto.replace(/\d{1,2}\/\d{1,2}(?:\/\d{2,4})?/g,'').replace(/\d{1,2}h(?::?\d{2})?/g,'').replace(/\d{1,2}:\d{2}/g,'');
     const precoM = semDataHora.match(/R\$\s*(\d+(?:[,.]\d{1,2})?)|(\d+(?:[,.]\d{1,2})?)\s*reais|\b(\d{2,4}(?:[,.]\d{2})?)\b/);
-    if (precoM) preco = parseFloat((precoM[1] || precoM[2] || precoM[3]).replace(',', '.'));
-
-    // Separar nome do cliente de nome do funcionário usando o cache de funcionários
+    const preco = precoM ? parseFloat((precoM[1]||precoM[2]||precoM[3]).replace(',','.')) : null;
     const nomes = _extrairNomes(texto, t);
-    const empPrimeiros = new Set((chatFuncionariosCache || []).map(u => _norm(u.name.split(' ')[0])));
-    const nomesEmp     = nomes.filter(n => empPrimeiros.has(_norm(n)));
+    const empPrimeiros = new Set((chatFuncionariosCache||[]).map(u => _norm(u.name.split(' ')[0])));
+    const nomesEmp = nomes.filter(n => empPrimeiros.has(_norm(n)));
     const nomesCliente = nomes.filter(n => !empPrimeiros.has(_norm(n)));
-
-    const clienteNome   = nomesCliente.join(' ') || nomes[0] || null;
+    const clienteNome = nomesCliente.join(' ') || nomes[0] || null;
     const funcionarioNome = nomesEmp[0] || null;
-
-    if (!clienteNome) return { tipo: 'agendamento_sem_info', faltando: 'nome do cliente' };
-    if (!data)        return { tipo: 'agendamento_sem_info', faltando: 'data (hoje, amanhã ou DD/MM)' };
-
-    return { tipo: 'agendamento', clienteNome, funcionarioNome, servico: svc, data, hora: h + ':' + m2, preco, scheduledAt: data + 'T' + h + ':' + m2 + ':00' };
+    return { tipo: 'agendamento', clienteNome, funcionarioNome, servico: svc, data, hora: h+':'+m2, preco, scheduledAt: data+'T'+h+':'+m2+':00' };
   }
 
   return null;
@@ -3960,6 +3946,8 @@ async function executarCheckout(clienteNome) {
 }
 
 async function executarAgendamento(acao) {
+  if (!acao.clienteNome)
+    return { ok: false, msg: '❌ Não identifiquei o cliente. Ex: "agenda a Floquinha para amanhã 10h"' };
   const base = chatClientesCache || (await get('/clients').catch(() => null)) || [];
   // Score por quantidade de palavras do nome que batem no cliente
   const palavras = _norm(acao.clienteNome).split(/\s+/).filter(p => p.length > 1);
@@ -4025,38 +4013,27 @@ async function executarAgendamento(acao) {
 // ── Edição de agendamento ────────────────────────────────────
 
 function _parsearEdicao(texto, t) {
-  const data = _extrairDataMensagem(texto, t);
-  console.log('[PARSE_EDICAO] data extraída:', data, '| texto:', texto);
-
-  // Novo horário: "para 14h" / "para 14:30"
+  const data = _extrairDataMensagem(texto, t) || _localDate();
   const timeM = texto.match(/para\s+(\d{1,2})h(?::?(\d{2}))?|para\s+(\d{1,2}):(\d{2})/i);
-  const novoHorario = timeM ? ((timeM[1]||timeM[3]).padStart(2,'0') + ':' + (timeM[2]||timeM[4]||'00')) : null;
-
-  // Novo serviço: "para banho", "para tosa", etc.
+  const novoHorario = timeM ? ((timeM[1]||timeM[3]).padStart(2,'0')+':'+(timeM[2]||timeM[4]||'00')) : null;
   const svcM = texto.match(/para\s+(banho\s*e\s*tosa|banho_tosa|banho|tosa|consulta|veterinari\w*)/i);
-  const novoSvc = svcM ? _norm(svcM[1]).replace(/\s*e\s*tosa/, '_tosa').replace(/veterinari\w*/, 'consulta') : null;
-
-  // Novo valor: "para 110", "para R$110" — removendo horários primeiro
-  const semH = texto.replace(/\d{1,2}h(?::?\d{2})?|\d{1,2}:\d{2}/g, '');
+  const novoSvc = svcM ? _norm(svcM[1]).replace(/\s*e\s*tosa/,'_tosa').replace(/veterinari\w*/,'consulta') : null;
+  const semH = texto.replace(/\d{1,2}h(?::?\d{2})?|\d{1,2}:\d{2}/g,'');
   const precoM = semH.match(/para\s+R?\$?\s*(\d+(?:[,.]\d{1,2})?)\s*(?:reais)?(?!\s*\/)/i);
-  const novoPreco = precoM && !svcM ? parseFloat(precoM[1].replace(',', '.')) : null;
-
-  // Nomes: separar cliente de funcionário pelo cache
+  const novoPreco = precoM && !svcM ? parseFloat(precoM[1].replace(',','.')) : null;
   const nomes = _extrairNomes(texto, t);
-  const empPrimeiros = new Set((chatFuncionariosCache || []).map(u => _norm(u.name.split(' ')[0])));
-  const nomesEmp     = nomes.filter(n => empPrimeiros.has(_norm(n)));
+  const empPrimeiros = new Set((chatFuncionariosCache||[]).map(u => _norm(u.name.split(' ')[0])));
+  const nomesEmp = nomes.filter(n => empPrimeiros.has(_norm(n)));
   const nomesCliente = nomes.filter(n => !empPrimeiros.has(_norm(n)));
-  const clienteNome    = nomesCliente.join(' ') || null;
+  const clienteNome = nomesCliente.join(' ') || null;
   const funcionarioNome = nomesEmp[0] || null;
-
-  // Precisa pelo menos de cliente para editar
-  if (!clienteNome) return { tipo: 'edicao_sem_info', faltando: 'nome do cliente' };
-  if (!data)        return { tipo: 'edicao_sem_info', faltando: 'data do agendamento' };
-
   return { tipo: 'edicao', clienteNome, data, funcionarioNome, novoSvc, novoPreco, novoHorario };
 }
 
 async function executarEdicao(acao) {
+  if (!acao.clienteNome)
+    return { ok: false, msg: '❌ Não identifiquei o cliente. Ex: "coloca Vanessa no agendamento da Floquinha amanhã"' };
+
   console.log('[EDIÇÃO] acao recebida:', JSON.stringify(acao));
 
   // Buscar agendamentos do dia
@@ -4140,15 +4117,9 @@ async function enviarMensagemChat() {
   sendBtn.disabled = true;
   adicionarMensagemChat('user', texto);
 
-  // Feature 3: detectar e executar ação diretamente
+  // Comando direto: detectar e executar sem passar pela IA
   const intencao = detectarIntencao(texto);
   if (intencao) {
-    if (intencao.tipo === 'agendamento_sem_info' || intencao.tipo === 'checkout_sem_nome' || intencao.tipo === 'edicao_sem_info') {
-      const falta = intencao.tipo === 'checkout_sem_nome' ? 'nome do cliente' : intencao.faltando;
-      adicionarMensagemChat('ia', 'Qual o ' + falta + '?');
-      input.disabled = false; sendBtn.disabled = false; input.focus();
-      return;
-    }
     mostrarLoadingChat();
     const resultado = intencao.tipo === 'checkout' ? await executarCheckout(intencao.clienteNome) :
                       intencao.tipo === 'edicao'   ? await executarEdicao(intencao) :
@@ -4159,11 +4130,19 @@ async function enviarMensagemChat() {
     return;
   }
 
+  // Só vai para a IA se for uma pergunta (ou texto livre não reconhecido)
+  const tNormChat = _norm(texto);
+  if (!_ehPergunta(tNormChat) && texto.length < 20 && !/\s/.test(texto.trim())) {
+    // Texto muito curto e sem palavras-chave reconhecidas — dar dica
+    adicionarMensagemChat('ia', 'Use comandos ("coloca Vanessa no agendamento da Floquinha amanhã") ou faça uma pergunta ("quem tem agendamento amanhã?")');
+    input.disabled = false; sendBtn.disabled = false; input.focus();
+    return;
+  }
+
   // Resposta via IA com contexto completo
   mostrarLoadingChat();
   const today = _localDate();
-  const tNorm = _norm(texto);
-  const dataConsulta = _extrairDataMensagem(texto, tNorm) || today;
+  const dataConsulta = _extrairDataMensagem(texto, tNormChat) || today;
   const dataLabel = dataConsulta === today ? 'hoje (' + today + ')' :
                     dataConsulta === _addDays(1) ? 'amanhã (' + dataConsulta + ')' :
                     dataConsulta;
