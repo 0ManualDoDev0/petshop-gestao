@@ -3739,8 +3739,8 @@ function removerLoadingChat() {
 
 async function iniciarChatbot() {
   mostrarLoadingChat();
-  const today = new Date().toISOString().split('T')[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const today = _localDate();
+  const tomorrow = _addDays(1);
   const [aptsHoje, aptsAmanha, hotelAtivo, todosClientes, todosUsers] = await Promise.all([
     get('/appointments?date=' + today).catch(() => null),
     get('/appointments?date=' + tomorrow).catch(() => null),
@@ -3854,6 +3854,9 @@ function gerarTextoFuncionarios() {
 const _norm = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const _IGNORAR = new Set(_norm('agenda agendar marcar banho tosa consulta veterinario hoje amanha segunda terca quarta quinta sexta sabado domingo dia check checkout para com de do da um uma').split(' '));
 const _SVC_LABELS = { banho: 'Banho', tosa: 'Tosa', banho_tosa: 'Banho e Tosa', consulta: 'Consulta' };
+// Formata Date como YYYY-MM-DD usando fuso local (evita desvio de -1 dia do toISOString em UTC-3)
+const _localDate = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const _addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return _localDate(d); };
 
 function detectarIntencao(texto) {
   const t = _norm(texto);
@@ -3880,8 +3883,8 @@ function detectarIntencao(texto) {
                 t.includes('banho') ? 'banho' : null;
 
     // Data: amanhã / hoje / DD/MM / DD/MM/AAAA / "dia N" / dia da semana
-    const hojeDt   = new Date().toISOString().split('T')[0];
-    const amanhaDt = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const hojeDt   = _localDate();
+    const amanhaDt = _addDays(1);
     let data = t.includes('amanha') ? amanhaDt : t.includes('hoje') ? hojeDt : null;
     if (!data) {
       const dmM = texto.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
@@ -3897,7 +3900,7 @@ function detectarIntencao(texto) {
         const ref = new Date(); ref.setHours(0,0,0,0);
         const cand = new Date(ref.getFullYear(), ref.getMonth(), d);
         if (cand <= ref) cand.setMonth(cand.getMonth() + 1);
-        data = cand.toISOString().split('T')[0];
+        data = _localDate(cand);
       }
     }
     if (!data) {
@@ -3905,7 +3908,7 @@ function detectarIntencao(texto) {
       for (let i = 0; i < SEMANA.length; i++) {
         if (t.includes(SEMANA[i])) {
           const diff = (i - new Date().getDay() + 7) % 7 || 7;
-          data = new Date(Date.now() + diff * 86400000).toISOString().split('T')[0];
+          data = _addDays(diff);
           break;
         }
       }
@@ -4016,8 +4019,8 @@ async function executarAgendamento(acao) {
 
   if (r?.id) {
     loadDashboard?.(); loadAgenda?.();
-    const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-    const hoje   = new Date().toISOString().split('T')[0];
+    const amanha = _addDays(1);
+    const hoje   = _localDate();
     const dataLabel = acao.data === amanha ? 'amanhã' : acao.data === hoje ? 'hoje' : acao.data;
     return { ok: true, msg: '✅ Agendado! ' + cliente.name + ' - ' + dataLabel + ' ' + acao.hora };
   }
@@ -4028,8 +4031,8 @@ async function executarAgendamento(acao) {
 
 function _parsearEdicao(texto, t) {
   // Data (mesmos parsers do agendamento)
-  const hojeDt   = new Date().toISOString().split('T')[0];
-  const amanhaDt = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const hojeDt   = _localDate();
+  const amanhaDt = _addDays(1);
   let data = t.includes('amanha') ? amanhaDt : t.includes('hoje') ? hojeDt : null;
   if (!data) {
     const dmM = texto.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
@@ -4045,7 +4048,7 @@ function _parsearEdicao(texto, t) {
       const ref = new Date(); ref.setHours(0,0,0,0);
       const cand = new Date(ref.getFullYear(), ref.getMonth(), d);
       if (cand <= ref) cand.setMonth(cand.getMonth() + 1);
-      data = cand.toISOString().split('T')[0];
+      data = _localDate(cand);
     }
   }
   if (!data) {
@@ -4053,11 +4056,12 @@ function _parsearEdicao(texto, t) {
     for (let i = 0; i < SEMANA.length; i++) {
       if (t.includes(SEMANA[i])) {
         const diff = (i - new Date().getDay() + 7) % 7 || 7;
-        data = new Date(Date.now() + diff * 86400000).toISOString().split('T')[0];
+        data = _addDays(diff);
         break;
       }
     }
   }
+  console.log('[PARSE_EDICAO] data extraída:', data, '| texto:', texto);
 
   // Novo horário: "para 14h" / "para 14:30"
   const timeM = texto.match(/para\s+(\d{1,2})h(?::?(\d{2}))?|para\s+(\d{1,2}):(\d{2})/i);
@@ -4151,8 +4155,8 @@ async function executarEdicao(acao) {
 
   if (r?.id) {
     loadDashboard?.(); loadAgenda?.();
-    const amanha = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-    const hoje   = new Date().toISOString().split('T')[0];
+    const amanha = _addDays(1);
+    const hoje   = _localDate();
     const dataLabel = acao.data === amanha ? 'amanhã' : acao.data === hoje ? 'hoje' : acao.data;
     return { ok: true, msg: '✅ Atualizado! ' + apt.client?.name + (acao.funcionarioNome ? ' → ' + acao.funcionarioNome : '') + ' — ' + dataLabel };
   }
