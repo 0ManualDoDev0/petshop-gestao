@@ -3858,6 +3858,30 @@ const _SVC_LABELS = { banho: 'Banho', tosa: 'Tosa', banho_tosa: 'Banho e Tosa', 
 const _localDate = (d = new Date()) => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 const _addDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return _localDate(d); };
 
+// Extrai data YYYY-MM-DD mencionada em qualquer mensagem do chat
+function _extrairDataMensagem(texto, t) {
+  if (t.includes('amanha')) return _addDays(1);
+  if (t.includes('hoje'))   return _localDate();
+  const dmM = texto.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if (dmM) {
+    const ano = dmM[3] ? (dmM[3].length === 2 ? '20' + dmM[3] : dmM[3]) : new Date().getFullYear();
+    return ano + '-' + dmM[2].padStart(2,'0') + '-' + dmM[1].padStart(2,'0');
+  }
+  const diaM = texto.match(/\bdia\s+(\d{1,2})\b/i);
+  if (diaM) {
+    const d = parseInt(diaM[1]);
+    const ref = new Date(); ref.setHours(0,0,0,0);
+    const cand = new Date(ref.getFullYear(), ref.getMonth(), d);
+    if (cand <= ref) cand.setMonth(cand.getMonth() + 1);
+    return _localDate(cand);
+  }
+  const SEMANA = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
+  for (let i = 0; i < SEMANA.length; i++) {
+    if (t.includes(SEMANA[i])) { return _addDays((i - new Date().getDay() + 7) % 7 || 7); }
+  }
+  return null; // nenhuma data encontrada — caller usa today
+}
+
 function detectarIntencao(texto) {
   const t = _norm(texto);
 
@@ -3883,36 +3907,7 @@ function detectarIntencao(texto) {
                 t.includes('banho') ? 'banho' : null;
 
     // Data: amanhã / hoje / DD/MM / DD/MM/AAAA / "dia N" / dia da semana
-    const hojeDt   = _localDate();
-    const amanhaDt = _addDays(1);
-    let data = t.includes('amanha') ? amanhaDt : t.includes('hoje') ? hojeDt : null;
-    if (!data) {
-      const dmM = texto.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
-      if (dmM) {
-        const ano = dmM[3] ? (dmM[3].length === 2 ? '20' + dmM[3] : dmM[3]) : new Date().getFullYear();
-        data = ano + '-' + dmM[2].padStart(2,'0') + '-' + dmM[1].padStart(2,'0');
-      }
-    }
-    if (!data) {
-      const diaM = texto.match(/\bdia\s+(\d{1,2})\b/i);
-      if (diaM) {
-        const d = parseInt(diaM[1]);
-        const ref = new Date(); ref.setHours(0,0,0,0);
-        const cand = new Date(ref.getFullYear(), ref.getMonth(), d);
-        if (cand <= ref) cand.setMonth(cand.getMonth() + 1);
-        data = _localDate(cand);
-      }
-    }
-    if (!data) {
-      const SEMANA = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
-      for (let i = 0; i < SEMANA.length; i++) {
-        if (t.includes(SEMANA[i])) {
-          const diff = (i - new Date().getDay() + 7) % 7 || 7;
-          data = _addDays(diff);
-          break;
-        }
-      }
-    }
+    const data = _extrairDataMensagem(texto, t);
 
     // Horário: 10h / 10h30 / 10:30
     const timeM = texto.match(/(\d{1,2})h(?::?(\d{2}))?|(\d{1,2}):(\d{2})/);
@@ -4030,37 +4025,7 @@ async function executarAgendamento(acao) {
 // ── Edição de agendamento ────────────────────────────────────
 
 function _parsearEdicao(texto, t) {
-  // Data (mesmos parsers do agendamento)
-  const hojeDt   = _localDate();
-  const amanhaDt = _addDays(1);
-  let data = t.includes('amanha') ? amanhaDt : t.includes('hoje') ? hojeDt : null;
-  if (!data) {
-    const dmM = texto.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
-    if (dmM) {
-      const ano = dmM[3] ? (dmM[3].length === 2 ? '20' + dmM[3] : dmM[3]) : new Date().getFullYear();
-      data = ano + '-' + dmM[2].padStart(2,'0') + '-' + dmM[1].padStart(2,'0');
-    }
-  }
-  if (!data) {
-    const diaM = texto.match(/\bdia\s+(\d{1,2})\b/i);
-    if (diaM) {
-      const d = parseInt(diaM[1]);
-      const ref = new Date(); ref.setHours(0,0,0,0);
-      const cand = new Date(ref.getFullYear(), ref.getMonth(), d);
-      if (cand <= ref) cand.setMonth(cand.getMonth() + 1);
-      data = _localDate(cand);
-    }
-  }
-  if (!data) {
-    const SEMANA = ['domingo','segunda','terca','quarta','quinta','sexta','sabado'];
-    for (let i = 0; i < SEMANA.length; i++) {
-      if (t.includes(SEMANA[i])) {
-        const diff = (i - new Date().getDay() + 7) % 7 || 7;
-        data = _addDays(diff);
-        break;
-      }
-    }
-  }
+  const data = _extrairDataMensagem(texto, t);
   console.log('[PARSE_EDICAO] data extraída:', data, '| texto:', texto);
 
   // Novo horário: "para 14h" / "para 14:30"
@@ -4196,15 +4161,21 @@ async function enviarMensagemChat() {
 
   // Resposta via IA com contexto completo
   mostrarLoadingChat();
-  const today = new Date().toISOString().split('T')[0];
+  const today = _localDate();
+  const tNorm = _norm(texto);
+  const dataConsulta = _extrairDataMensagem(texto, tNorm) || today;
+  const dataLabel = dataConsulta === today ? 'hoje (' + today + ')' :
+                    dataConsulta === _addDays(1) ? 'amanhã (' + dataConsulta + ')' :
+                    dataConsulta;
+
   const [apts, hotelStays, cashData] = await Promise.all([
-    get('/appointments?date=' + today).catch(() => null),
+    get('/appointments?date=' + dataConsulta).catch(() => null),
     get('/hotel/active').catch(() => null),
     get('/finance/cash-entries?start=' + today + '&end=' + today).catch(() => null),
   ]);
   const aptsResumo = (apts || []).length
-    ? apts.map(a => '- ' + (a.pet?.name||'?') + ' (' + (a.client?.name||'?') + '): ' + (a.type||'?') + ' | status: ' + a.status + ' | func: ' + (a.employee?.name||'sem funcionário') + ' | R$' + Number(a.priceCharged||0).toFixed(2)).join('\n')
-    : 'Nenhum agendamento hoje';
+    ? apts.map(a => '- ' + (a.client?.name||'?') + ': ' + (a.type||'?') + ' | status: ' + a.status + ' | func: ' + (a.employee?.name||'sem funcionário') + ' | R$' + Number(a.priceCharged||0).toFixed(2) + ' | ' + (a.scheduledAt||'').slice(11,16) + 'h').join('\n')
+    : 'Nenhum agendamento em ' + dataLabel;
   const hotelResumo = (hotelStays||[]).length
     ? hotelStays.map(h => '- ' + (h.pet?.name||h.client?.name||'?') + ': check-in ' + (h.checkIn||'').split('T')[0] + ', ' + (h.isPaid ? 'pago' : 'sem pagamento')).join('\n')
     : 'Nenhum pet hospedado';
@@ -4215,7 +4186,7 @@ async function enviarMensagemChat() {
   const textoClientes = gerarTextoClientes();
   const textoFuncionarios = gerarTextoFuncionarios();
 
-  const prompt = 'Você é o assistente do PetShop do Carlos. Seja direto e conciso — sem rodeios, sem listas, sem pedir confirmação. Responda em 1-3 frases. Neste sistema cada cliente é identificado pelo nome completo (ex: "Lua Shitzu Wagner"). Quando o usuário citar um nome parcial, use o cadastro abaixo para identificar o cliente correto.' + textoClientes + textoFuncionarios + '\n\nDados atuais (' + today + '):\nAGENDAMENTOS DO DIA:\n' + aptsResumo + '\n\nHOTEL:\n' + hotelResumo + '\n\nFATURAMENTO DO DIA:\n' + cashResumo + insightsNegocio + '\n\nPergunta: ' + texto;
+  const prompt = 'Você é o assistente do PetShop do Carlos. Seja direto e conciso — sem rodeios, sem listas, sem pedir confirmação. Responda em 1-3 frases. Neste sistema cada cliente é identificado pelo nome completo (ex: "Lua Shitzu Wagner"). Quando o usuário citar um nome parcial, use o cadastro abaixo para identificar o cliente correto.' + textoClientes + textoFuncionarios + '\n\nDados de ' + dataLabel + ':\nAGENDAMENTOS:\n' + aptsResumo + '\n\nHOTEL (atual):\n' + hotelResumo + '\n\nFATURAMENTO DO DIA (hoje):\n' + cashResumo + insightsNegocio + '\n\nPergunta: ' + texto;
 
   try {
     const res = await fetch(API + '/ai/financial-report', {
