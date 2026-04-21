@@ -4096,7 +4096,7 @@ async function executarEdicao(acao) {
   console.log('[EDIÇÃO] resposta PATCH:', JSON.stringify(r));
 
   if (r?.id) {
-    loadDashboard?.(); loadAgenda?.();
+    loadDashboard?.(); loadAgenda?.(acao.data);
     const amanha = _addDays(1);
     const hoje   = _localDate();
     const dataLabel = acao.data === amanha ? 'amanhã' : acao.data === hoje ? 'hoje' : acao.data;
