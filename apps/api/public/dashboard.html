@@ -2617,7 +2617,7 @@ function setFinPeriodo(periodo) {
 async function loadFinPeriodo(start, end) {
   const el = document.getElementById('lancamentos-table');
   el.innerHTML = '<div class="loading"><div class="spinner"></div>Carregando...</div>';
-  const data = await get(`/finance/cash-entries?start=${start}&end=${end}`);
+  const data = await get(`/finance/cash-entries?startDate=${start}&endDate=${end}`);
   if (!data) return;
   const entries = Array.isArray(data) ? data : (data.entries || []);
   const income  = entries.filter(e => e.type === 'income').reduce((s, e) => s + Number(e.amount), 0);
@@ -4221,10 +4221,10 @@ async function enviarMensagemChat() {
                     dataConsulta === _addDays(1) ? 'amanhã (' + dataConsulta + ')' :
                     dataConsulta;
 
-  const [apts, hotelStays, cashData] = await Promise.all([
+  const [apts, hotelStays, cashSummary] = await Promise.all([
     get('/appointments?date=' + dataConsulta).catch(() => null),
     get('/hotel/active').catch(() => null),
-    get('/finance/cash-entries?start=' + today + '&end=' + today).catch(() => null),
+    get('/finance/summary?start=' + today + '&end=' + today).catch(() => null),
   ]);
   const aptsResumo = (apts || []).length
     ? apts.map(a => '- ' + (a.client?.name||'?') + ': ' + (a.type||'?') + ' | status: ' + a.status + ' | func: ' + (a.employee?.name||'sem funcionário') + ' | R$' + Number(a.priceCharged||0).toFixed(2) + ' | ' + (a.scheduledAt||'').slice(11,16) + 'h').join('\n')
@@ -4232,9 +4232,9 @@ async function enviarMensagemChat() {
   const hotelResumo = (hotelStays||[]).length
     ? hotelStays.map(h => '- ' + (h.pet?.name||h.client?.name||'?') + ': check-in ' + (h.checkIn||'').split('T')[0] + ', ' + (h.isPaid ? 'pago' : 'sem pagamento')).join('\n')
     : 'Nenhum pet hospedado';
-  const entries = Array.isArray(cashData) ? cashData : (cashData?.entries || []);
-  const totalCaixa = entries.reduce((s, e) => s + Number(e.amount||0), 0);
-  const cashResumo = entries.length + ' lançamento(s), total R$' + totalCaixa.toFixed(2);
+  const cashResumo = cashSummary
+    ? 'Entradas R$' + Number(cashSummary.income||0).toFixed(2) + ' | Saídas R$' + Number(cashSummary.expense||0).toFixed(2) + ' | Lucro R$' + Number(cashSummary.profit||0).toFixed(2)
+    : 'Dados indisponíveis';
   const insightsNegocio = gerarTextoContextoNegocio();
   const textoClientes = gerarTextoClientes();
   const textoFuncionarios = gerarTextoFuncionarios();
