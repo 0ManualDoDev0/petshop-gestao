@@ -458,29 +458,35 @@
   }
   #chatbot-fab:hover { transform:scale(1.08);box-shadow:0 6px 28px rgba(0,0,0,.55); }
   #chatbot-box {
-    position:fixed;bottom:92px;right:24px;width:380px;height:500px;
+    position:fixed;bottom:92px;right:24px;width:480px;height:600px;
     background:var(--surface);border:1px solid var(--border);border-radius:16px;
     display:flex;flex-direction:column;z-index:1099;
     box-shadow:0 8px 40px rgba(0,0,0,.55);
     transform-origin:bottom right;transform:scale(.85);opacity:0;
-    transition:transform .2s cubic-bezier(.34,1.56,.64,1),opacity .15s ease;
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1),opacity .15s ease,width .2s ease,height .2s ease;
     pointer-events:none;overflow:hidden;
   }
   #chatbot-box.open { transform:scale(1);opacity:1;pointer-events:all; }
+  #chatbot-box.expanded { width:700px;height:700px; }
+  @media (max-width:768px) {
+    #chatbot-box { width:90vw;height:80vh;right:5vw;bottom:80px; }
+    #chatbot-box.expanded { width:90vw;height:90vh; }
+  }
   #chatbot-header {
     display:flex;align-items:center;justify-content:space-between;
     padding:14px 16px;border-bottom:1px solid var(--border);
     background:var(--surface2);flex-shrink:0;
   }
   #chatbot-header span { font-size:14px;font-weight:600;color:var(--text); }
-  #chatbot-close {
+  #chatbot-header-actions { display:flex;align-items:center;gap:4px; }
+  .chatbot-hbtn {
     background:none;border:none;color:var(--muted);cursor:pointer;
-    font-size:18px;line-height:1;padding:2px 6px;border-radius:6px;
+    font-size:16px;line-height:1;padding:3px 7px;border-radius:6px;
     transition:color .15s,background .15s;
   }
-  #chatbot-close:hover { color:var(--text);background:var(--surface3); }
+  .chatbot-hbtn:hover { color:var(--text);background:var(--surface3); }
   #chatbot-messages {
-    flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:10px;
+    flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;
   }
   #chatbot-messages::-webkit-scrollbar { width:4px; }
   #chatbot-messages::-webkit-scrollbar-thumb { background:var(--border2);border-radius:4px; }
@@ -488,8 +494,8 @@
   .chat-msg--ia  { justify-content:flex-start; }
   .chat-msg--user { justify-content:flex-end; }
   .chat-bubble {
-    max-width:82%;padding:9px 13px;border-radius:14px;
-    font-size:13px;line-height:1.5;word-break:break-word;
+    max-width:82%;padding:10px 14px;border-radius:14px;
+    font-size:14px;line-height:1.55;word-break:break-word;
   }
   .chat-msg--ia    .chat-bubble { background:var(--surface2);color:var(--text);border-bottom-left-radius:4px; }
   .chat-msg--user  .chat-bubble { background:var(--accent);color:#fff;border-bottom-right-radius:4px; }
@@ -503,17 +509,17 @@
   .chat-loading span:nth-child(3) { animation-delay:.36s; }
   @keyframes chatdot { 0%,60%,100%{transform:translateY(0);opacity:.4} 30%{transform:translateY(-5px);opacity:1} }
   #chatbot-input-wrap {
-    display:flex;gap:8px;padding:12px;border-top:1px solid var(--border);
+    display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);
     background:var(--surface2);flex-shrink:0;
   }
   #chatbot-input {
     flex:1;background:var(--surface3);border:1px solid var(--border2);
-    border-radius:10px;padding:9px 13px;font-size:13px;color:var(--text);
+    border-radius:10px;padding:10px 14px;font-size:14px;color:var(--text);
     font-family:var(--font);outline:none;transition:border-color .15s;
   }
   #chatbot-input:focus { border-color:var(--accent); }
   #chatbot-send {
-    width:38px;height:38px;border-radius:10px;background:var(--accent);
+    width:42px;height:42px;border-radius:10px;background:var(--accent);
     border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
     flex-shrink:0;transition:opacity .15s;
   }
@@ -1512,11 +1518,15 @@
 <div id="chatbot-box">
   <div id="chatbot-header">
     <span>Assistente PetShop 🐾</span>
-    <button id="chatbot-close" onclick="toggleChatbot()">✕</button>
+    <div id="chatbot-header-actions">
+      <button class="chatbot-hbtn" onclick="toggleExpandChatbot()" title="Expandir/recolher" id="chatbot-expand">⛶</button>
+      <button class="chatbot-hbtn" onclick="limparHistoricoChat()" title="Limpar histórico">🗑️</button>
+      <button class="chatbot-hbtn" onclick="toggleChatbot()" title="Fechar">✕</button>
+    </div>
   </div>
   <div id="chatbot-messages"></div>
   <div id="chatbot-input-wrap">
-    <input id="chatbot-input" type="text" placeholder="Digite sua mensagem..."
+    <input id="chatbot-input" type="text" placeholder="Comando ou pergunta..."
       onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMensagemChat()}">
     <button id="chatbot-send" onclick="enviarMensagemChat()" title="Enviar">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">
@@ -3692,9 +3702,44 @@ if (dtInput) dtInput.value = new Date(now - now.getTimezoneOffset() * 60000).toI
 // ============================================================
 let chatbotOpen = false;
 let chatbotIniciado = false;
-let chatContextCache = null;   // { ts, empData, revData30, revCurrWeek, revPrevWeek }
-let chatClientesCache = null;  // todos os clientes com pets
-let chatFuncionariosCache = null; // todos os funcionários ativos
+let chatbotExpanded = false;
+let chatContextCache = null;
+let chatClientesCache = null;
+let chatFuncionariosCache = null;
+
+const CHAT_HISTORY_KEY = 'petshop_chat_history';
+const CHAT_HISTORY_MAX = 50;
+
+// ── Histórico persistente ────────────────────────────────────
+
+function _carregarHistorico() {
+  try { return JSON.parse(localStorage.getItem(CHAT_HISTORY_KEY) || '[]'); } catch { return []; }
+}
+
+function _salvarMensagemHistorico(role, content) {
+  try {
+    const hist = _carregarHistorico();
+    hist.push({ role, content, timestamp: Date.now() });
+    if (hist.length > CHAT_HISTORY_MAX) hist.splice(0, hist.length - CHAT_HISTORY_MAX);
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(hist));
+  } catch {}
+}
+
+function limparHistoricoChat() {
+  if (!confirm('Limpar todo o histórico do chat?')) return;
+  localStorage.removeItem(CHAT_HISTORY_KEY);
+  document.getElementById('chatbot-messages').innerHTML = '';
+  adicionarMensagemChat('ia', 'Histórico limpo. Como posso ajudar?');
+}
+
+function _renderizarHistorico() {
+  const hist = _carregarHistorico();
+  if (!hist.length) return false;
+  hist.forEach(m => _renderizarMensagem(m.role, m.content));
+  const msgs = document.getElementById('chatbot-messages');
+  msgs.scrollTop = msgs.scrollHeight;
+  return true;
+}
 
 // ── UI helpers ───────────────────────────────────────────────
 
@@ -3708,7 +3753,13 @@ function toggleChatbot() {
   if (chatbotOpen) setTimeout(() => document.getElementById('chatbot-input').focus(), 220);
 }
 
-function adicionarMensagemChat(tipo, texto) {
+function toggleExpandChatbot() {
+  chatbotExpanded = !chatbotExpanded;
+  document.getElementById('chatbot-box').classList.toggle('expanded', chatbotExpanded);
+  document.getElementById('chatbot-expand').textContent = chatbotExpanded ? '⊡' : '⛶';
+}
+
+function _renderizarMensagem(tipo, texto) {
   const msgs = document.getElementById('chatbot-messages');
   const div = document.createElement('div');
   div.className = 'chat-msg chat-msg--' + tipo;
@@ -3717,7 +3768,15 @@ function adicionarMensagemChat(tipo, texto) {
   bubble.innerHTML = texto.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
   div.appendChild(bubble);
   msgs.appendChild(div);
+  return div;
+}
+
+function adicionarMensagemChat(tipo, texto) {
+  _renderizarMensagem(tipo, texto);
+  const msgs = document.getElementById('chatbot-messages');
   msgs.scrollTop = msgs.scrollHeight;
+  // Salva no histórico (exceto alertas e loading)
+  if (tipo === 'ia' || tipo === 'user') _salvarMensagemHistorico(tipo, texto);
 }
 
 function mostrarLoadingChat() {
@@ -3738,6 +3797,9 @@ function removerLoadingChat() {
 // ── Inicialização ────────────────────────────────────────────
 
 async function iniciarChatbot() {
+  // Carrega histórico salvo — se tiver, mostra sem boas-vindas duplicada
+  const temHistorico = _renderizarHistorico();
+
   mostrarLoadingChat();
   const today = _localDate();
   const tomorrow = _addDays(1);
@@ -3751,10 +3813,17 @@ async function iniciarChatbot() {
   if (Array.isArray(todosClientes)) chatClientesCache = todosClientes;
   if (Array.isArray(todosUsers))    chatFuncionariosCache = todosUsers.filter(u => u.isActive);
   removerLoadingChat();
-  // Feature 2: alertas proativos antes da boas-vindas
-  gerarAlertas(aptsHoje, aptsAmanha, hotelAtivo, today).forEach(a => adicionarMensagemChat('alert', a));
-  adicionarMensagemChat('ia', 'Olá Carlos! 👋 Sou seu assistente. Posso responder sobre agendamentos, hotel, faturamento e muito mais. Como posso ajudar?');
-  // Feature 1+4: carrega memória/padrões em background sem bloquear
+
+  if (!temHistorico) {
+    // Primeira abertura: alertas + boas-vindas
+    gerarAlertas(aptsHoje, aptsAmanha, hotelAtivo, today).forEach(a => adicionarMensagemChat('alert', a));
+    adicionarMensagemChat('ia', 'Olá Carlos! 👋 Sou seu assistente. Posso responder sobre agendamentos, hotel, faturamento e muito mais. Como posso ajudar?');
+  } else {
+    // Retorno: só alertas novos sem boas-vindas
+    gerarAlertas(aptsHoje, aptsAmanha, hotelAtivo, today).forEach(a => _renderizarMensagem('alert', a));
+    const msgs = document.getElementById('chatbot-messages');
+    msgs.scrollTop = msgs.scrollHeight;
+  }
   carregarContextoNegocio();
 }
 
