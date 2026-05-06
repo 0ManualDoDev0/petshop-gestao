@@ -1,6 +1,7 @@
 # 🐾 PetShop Gestão
 
 <img src="https://github.com/0ManualDoDev0/petshop-gestao/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+<img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License MIT"/>
 
 Sistema completo de gestão para petshop com banho, tosa, hotel e táxi dog.
 
@@ -79,3 +80,19 @@ petshop-gestao/
 | Controle de acesso | RBAC (dono/funcionário) |
 
 Encontrou uma vulnerabilidade? Veja [SECURITY.md](./SECURITY.md).
+
+---
+
+## 🗺️ Roadmap
+
+- [x] API REST completa com NestJS
+- [x] Dashboard web em tempo real
+- [x] Deploy em produção na Railway
+- [x] CI/CD com GitHub Actions
+- [ ] App Mobile React Native (em desenvolvimento)
+- [ ] Notificações push
+- [ ] Relatórios em PDF
+
+---
+
+## 📄 Licença
