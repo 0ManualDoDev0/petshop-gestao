@@ -29,5 +29,8 @@ jobs:
       - name: Build
         run: cd apps/api && npm run build
 
+      - name: Run tests
+        run: cd apps/api && npm test
+
       - name: Security audit
         run: cd apps/api && npm audit --audit-level=critical || true
