@@ -1,5 +1,7 @@
 # 🐾 PetShop Gestão
 
+<img src="https://github.com/0ManualDoDev0/petshop-gestao/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+
 Sistema completo de gestão para petshop com banho, tosa, hotel e táxi dog.
 
 ---
