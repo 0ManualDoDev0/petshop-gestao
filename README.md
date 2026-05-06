@@ -4,6 +4,8 @@
 
 Sistema completo de gestão para petshop com banho, tosa, hotel e táxi dog.
 
+<br/><img src="docs/screenshots/dashboard.png" alt="Dashboard PetShop Gestão" width="100%"/><br/>
+
 ---
 
 ## ✨ Funcionalidades
