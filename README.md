@@ -60,3 +60,18 @@ petshop-gestao/
 │       └── public/       # Dashboard
 └── README.md
 ```
+
+---
+
+## 🔒 Segurança
+
+| Medida | Implementação |
+|---|---|
+| Headers HTTP | Helmet |
+| Rate Limiting | 60 req/min por IP (ThrottlerGuard) |
+| Autenticação | JWT com expiração |
+| Senhas | Bcrypt com salt |
+| Validação | ValidationPipe global |
+| Controle de acesso | RBAC (dono/funcionário) |
+
+Encontrou uma vulnerabilidade? Veja [SECURITY.md](./SECURITY.md).
